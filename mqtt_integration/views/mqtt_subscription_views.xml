@@ -1,0 +1,70 @@
+<odoo>
+    <record id="view_mqtt_subscription_tree" model="ir.ui.view">
+        <field name="name">mqtt.subscription.tree</field>
+        <field name="model">mqtt.subscription</field>
+        <field name="arch" type="xml">
+            <tree string="MQTT Subscriptions" delete="false">
+                <field name="display_name"/>
+                <field name="broker_id"/>
+                <field name="topic"/>
+                <field name="qos"/>
+                <field name="subscribed"/>
+                <field name="subscription_time"/>
+                <field name="subscription_status"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mqtt_subscription_form" model="ir.ui.view">
+        <field name="name">mqtt.subscription.form</field>
+        <field name="model">mqtt.subscription</field>
+        <field name="arch" type="xml">
+            <form string="MQTT Subscription" delete="false">
+                <header>
+                    <field name="subscription_status" widget="statusbar" statusbar_visible="subscribed,subscribing,fail"/>
+                    <button name="subscribe_mqtt" type="object"
+                            string="Subscribe"
+                            attrs="{
+                            'invisible': [('subscribed', '=', True)],
+                            'readonly': [('subscription_in_progress', '=', True)
+                            ]}"
+                            class="btn-primary"/>
+                    <field name="subscription_in_progress" invisible="1"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="display_name" readonly="1"/>
+                        <field name="broker_id"/>
+                        <field name="topic"/>
+                        <field name="qos"/>
+                        <field name="no_local_flag"/>
+                        <field name="retain_as_published_flag"/>
+                        <field name="retain_handling"/>
+                        <field name="subscribed" readonly="1"/>
+                        <field name="subscription_time" readonly="1"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" groups="base.group_user"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mqtt_subscription" model="ir.actions.act_window">
+        <field name="name">MQTT Subscriptions</field>
+        <field name="res_model">mqtt.subscription</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create new MQTT subscription.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_mqtt_subscription"
+              name="Subscriptions"
+              parent="menu_mqtt_root"
+              action="action_mqtt_subscription"
+              sequence="2"/>
+</odoo>

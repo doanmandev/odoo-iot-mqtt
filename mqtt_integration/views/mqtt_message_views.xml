@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mqtt_message_tree" model="ir.ui.view">
+        <field name="name">mqtt.message.tree</field>
+        <field name="model">mqtt.message</field>
+        <field name="arch" type="xml">
+            <tree string="MQTT Messages" delete="false">
+                <field name="subscription_id"/>
+                <field name="payload"/>
+                <field name="qos"/>
+                <field name="retain"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mqtt_message_form" model="ir.ui.view">
+        <field name="name">mqtt.message.form</field>
+        <field name="model">mqtt.message</field>
+        <field name="arch" type="xml">
+            <form string="Send MQTT Message" delete="false">
+                <header>
+                    <button name="action_send_mqtt" type="object" string="Sent" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="display_name" readonly="1"/>
+                        <field name="broker_id"/>
+                        <field name="subscription_id" domain="[('broker_id', '=', broker_id)]"/>
+                        <field name="payload"/>
+                        <field name="qos" optional="hide"/>
+                        <field name="retain" optional="hide"/>
+                    </group>
+                    <separator string="Send/receive history (by topic)"/>
+                    <field name="history_ids" nolabel="1" readonly="1" options="{'no_open': True, 'no_create': True, 'no_delete': True}">
+                        <tree string="MQTT Message history" create="false" edit="false" delete="false">
+                            <field name="display_name"/>
+                            <field name="message_id"/>
+                            <field name="payload"/>
+                            <field name="direction"/>
+                            <field name="qos" optional="hide"/>
+                            <field name="retain" optional="hide"/>
+                        </tree>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" groups="base.group_user"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_mqtt_message_action" model="ir.actions.act_window">
+        <field name="name">MQTT Messages</field>
+        <field name="res_model">mqtt.message</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+    
+    <menuitem id="menu_mqtt_message" name="Messages" parent="menu_mqtt_root" action="view_mqtt_message_action" sequence="3"/>
+</odoo>

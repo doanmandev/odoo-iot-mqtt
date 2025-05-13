@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mqtt_broker_connection_tree" model="ir.ui.view">
+        <field name="name">mqtt.broker.connection.tree</field>
+        <field name="model">mqtt.broker.connection</field>
+        <field name="arch" type="xml">
+            <tree string="MQTT Brokers">
+                <field name="name"/>
+                <field name="username"/>
+                <field name="client_id"/>
+                <field name="host"/>
+                <field name="port"/>
+                <field name="keepalive"/>
+                <field name="connection_status"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mqtt_broker_connection_form" model="ir.ui.view">
+        <field name="name">mqtt.broker.connection.form</field>
+        <field name="model">mqtt.broker.connection</field>
+        <field name="arch" type="xml">
+            <form string="MQTT Broker Connection">
+                <header>
+                    <field name="connection_status" widget="statusbar" statusbar_visible="unknown,success,fail"/>
+                    <button name="action_check_connection"
+                            type="object" string="Connect"
+                            attrs="{'invisible': [('connection_status', '=', 'success')]}"
+                            class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="url_scheme"/>
+                            <field name="host"/>
+                            <field name="port"/>
+                        </group>
+                        <group>
+                            <field name="client_id"/>
+                            <field name="username"/>
+                            <field name="password" password="True"/>
+                            <field name="keepalive"/>
+                        </group>
+                        <group>
+                            <field name="connect_timeout"/>
+                            <field name="connection_status"/>
+                            <field name="connection_message"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Notes">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mqtt_broker_connection" model="ir.actions.act_window">
+        <field name="name">MQTT Brokers Connection</field>
+        <field name="res_model">mqtt.broker.connection</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_mqtt_root" name="MQTT Brokers" sequence="10"/>
+    <menuitem id="menu_mqtt_broker_connections" name="Connections" parent="menu_mqtt_root" action="action_mqtt_broker_connection" sequence="1"/>
+
+</odoo>

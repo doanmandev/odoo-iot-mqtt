@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mqtt_message_history_tree" model="ir.ui.view">
+        <field name="name">mqtt.message.history.tree</field>
+        <field name="model">mqtt.message.history</field>
+        <field name="arch" type="xml">
+            <tree string="MQTT Message History" delete="false">
+                <field name="timestamp"/>
+                <field name="message_id" readonly="1"/>
+                <field name="topic"/>
+                <field name="direction"/>
+                <field name="payload"/>
+                <field name="qos" optional="hide"/>
+                <field name="retain" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_mqtt_message_history" model="ir.actions.act_window">
+        <field name="name">MQTT Message History</field>
+        <field name="res_model">mqtt.message.history</field>
+        <field name="view_mode">tree</field>
+    </record>
+    <menuitem id="menu_mqtt_message_history" name="Messages History" parent="menu_mqtt_root" action="action_mqtt_message_history" sequence="4"/>
+</odoo>
