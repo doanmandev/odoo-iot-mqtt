@@ -6,12 +6,12 @@ import random
 import string
 import socket
 
-class MQTTBrokerConnection(models.Model):
-    _name = 'mqtt.broker.connection'
+class MQTTBroker(models.Model):
+    _name = 'mqtt.broker'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _description = 'MQTT Broker Connection'
+    _description = 'MQTT Broker'
 
-    name = fields.Char(string='Connection Name', required=True, tracking=True)
+    name = fields.Char(string='Broker Name', required=True, tracking=True)
     url_scheme = fields.Selection([
         ('mqtt://', 'MQTT'),
         ('ws://', 'WS')], default='mqtt://', string='URI scheme', required=True, tracking=True)

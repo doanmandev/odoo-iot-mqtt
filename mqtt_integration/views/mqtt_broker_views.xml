@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_mqtt_broker_connection_tree" model="ir.ui.view">
-        <field name="name">mqtt.broker.connection.tree</field>
-        <field name="model">mqtt.broker.connection</field>
+    <!-- Views -->
+    <record id="view_mqtt_broker_tree" model="ir.ui.view">
+        <field name="name">mqtt.broker.tree</field>
+        <field name="model">mqtt.broker</field>
         <field name="arch" type="xml">
             <tree string="MQTT Brokers">
                 <field name="name"/>
@@ -16,11 +17,11 @@
         </field>
     </record>
 
-    <record id="view_mqtt_broker_connection_form" model="ir.ui.view">
-        <field name="name">mqtt.broker.connection.form</field>
-        <field name="model">mqtt.broker.connection</field>
+    <record id="view_mqtt_broker_form" model="ir.ui.view">
+        <field name="name">mqtt.broker.form</field>
+        <field name="model">mqtt.broker</field>
         <field name="arch" type="xml">
-            <form string="MQTT Broker Connection">
+            <form string="MQTT Broker">
                 <header>
                     <field name="connection_status" widget="statusbar" statusbar_visible="unknown,success,fail"/>
                     <button name="action_check_connection"
@@ -63,13 +64,32 @@
         </field>
     </record>
 
-    <record id="action_mqtt_broker_connection" model="ir.actions.act_window">
-        <field name="name">MQTT Brokers Connection</field>
-        <field name="res_model">mqtt.broker.connection</field>
+    <!-- Actions -->
+    <record id="action_mqtt_broker" model="ir.actions.act_window">
+        <field name="name">MQTT Brokers</field>
+        <field name="res_model">mqtt.broker</field>
         <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+              <p class="o_view_nocontent_smiling_face">
+                Create a Broker
+              </p>
+            </field>
     </record>
 
-    <menuitem id="menu_mqtt_root" name="MQTT Brokers" sequence="10"/>
-    <menuitem id="menu_mqtt_broker_connections" name="Connections" parent="menu_mqtt_root" action="action_mqtt_broker_connection" sequence="1"/>
+    <!-- Menu -->
+    <menuitem id="menu_mqtt_root"
+              name="MQTT Brokers"
+              sequence="10"/>
+
+    <menuitem id="menu_mqtt_configuration"
+              name="Configuration"
+              parent="mqtt_integration.menu_mqtt_root"
+              sequence="100"/>
+
+    <menuitem id="menu_mqtt_broker"
+              name="Broker"
+              parent="mqtt_integration.menu_mqtt_configuration"
+              action="action_mqtt_broker"
+              sequence="1"/>
 
 </odoo>

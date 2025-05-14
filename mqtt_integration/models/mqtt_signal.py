@@ -3,15 +3,15 @@ from odoo import models, fields, api
 from odoo.exceptions import UserError
 import paho.mqtt.client as mqtt
 
-class MqttMessage(models.Model):
-    _name = 'mqtt.message'
+class MQTTSignal(models.Model):
+    _name = 'mqtt.signal'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _description = 'MQTT Message'
+    _description = 'MQTT Signal'
     _rec_name = 'display_name'
 
-    broker_id = fields.Many2one('mqtt.broker.connection', string='MQTT Broker', required=True)
+    broker_id = fields.Many2one('mqtt.broker', string='MQTT Broker', required=True)
     subscription_id = fields.Many2one('mqtt.subscription', string='MQTT Subscription', required=True)
-    history_ids = fields.One2many('mqtt.message.history', 'message_id', string='Message History')
+    history_ids = fields.One2many('mqtt.signal.history', 'signal_id', string='Signal History')
 
     topic = fields.Char(string='Topic', related='subscription_id.topic', store=True)
     payload = fields.Text(string='Payload', required=True)
@@ -23,7 +23,7 @@ class MqttMessage(models.Model):
     @api.depends('broker_id.name', 'topic')
     def _compute_display_name(self):
         for rec in self:
-            broker_name = rec.broker_id.name or "Unknown Message Broker"
+            broker_name = rec.broker_id.name or "Unknown Signal Broker"
             rec.display_name = f"{broker_name} - {self.topic}"
 
     def action_send_mqtt(self):
@@ -48,12 +48,12 @@ class MqttMessage(models.Model):
                 rec.send_at = fields.Datetime.now()
 
                 # Save history
-                self.env['mqtt.message.history'].create({
-                    'message_id': rec.id,
+                self.env['mqtt.signal.history'].create({
+                    'signal_id': rec.id,
                     'payload': rec.payload,
                     'qos': rec.qos,
                     'retain': rec.retain,
                     'direction': 'send',
                 })
             except Exception as e:
-                raise UserError(f'Send message Fail: {e}')
+                raise UserError(f'Send signal Fail: {e}')

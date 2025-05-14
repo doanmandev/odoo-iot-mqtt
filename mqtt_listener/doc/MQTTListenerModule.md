@@ -1,224 +1,245 @@
-# Tài liệu Module MQTT Listener
-### Phần 1: tóm tắt tài liệu
-### Phần 2: Chi tiết
+# MQTT Listener Module Documentation
 
-# Phần 1
-## Tóm tắt tài liệu
+### Part 1: Document Summary
+### Part 2: Details
 
-Tài liệu MQTT_Listener_Document.md là một hướng dẫn toàn diện về module MQTT Listener, bao gồm:
+# Part 1
+## Document Summary
 
-- Giới thiệu tổng quan về module và mục đích sử dụng
-- Các tính năng chính của module
-- Cấu trúc thư mục và tệp tin
-- Hướng dẫn sử dụng chi tiết
-- Mô tả về luồng hoạt động của module
-- Thông số kỹ thuật của kết nối MQTT
-- Hướng dẫn xử lý sự cố
-- Yêu cầu hệ thống
-- Hướng dẫn phát triển và tùy chỉnh
+This document provides a comprehensive guide to the MQTT Listener module for Odoo.
 
-Tài liệu này sẽ giúp người dùng và nhà phát triển hiểu rõ về cách hoạt động của module MQTT Listener, cách sử dụng và cách mở rộng nó cho các nhu cầu cụ thể.
+It includes:
+- Introduction and purpose of the MQTT Listener module
+- System architecture and components
+- Detailed API with code examples
+- Thread management and service lifecycle
+- Message handling and storage
+- Error handling and reconnection mechanisms
+- Integration with other Odoo modules
+- Security configuration
+- Deployment instructions
+- Best practices
+- Debugging and monitoring guidelines
 
-# Phần 2
-## Giới thiệu
+This documentation helps developers understand how to use and extend the MQTT Listener for real-time IoT applications and system integration in Odoo.
 
-Module MQTT Listener là một giải pháp tích hợp Odoo với các thiết bị IoT và dịch vụ bên ngoài thông qua giao thức MQTT. Module này tạo ra kênh giao tiếp hai chiều giữa Odoo và các hệ thống bên ngoài, cho phép việc nhận, xử lý và gửi tin nhắn MQTT.
+# Part 2
+## Introduction
 
-## Các tính năng chính
+The MQTT Listener module is an implementation that provides a background service for subscribing to and listening for MQTT messages in Odoo. It creates a dedicated thread that maintains a persistent connection to an MQTT broker, receives messages from configured topics, and stores them in the Odoo database.
 
-- Kết nối Odoo với broker MQTT và lắng nghe các topic đã đăng ký
-- Quản lý dịch vụ MQTT (khởi động, dừng, kiểm tra trạng thái) từ giao diện Odoo
-- Lưu lịch sử tin nhắn gửi và nhận
-- Gửi tin nhắn MQTT từ Odoo đến các thiết bị/hệ thống khác
-- Tự động kết nối lại khi mất kết nối
-- Tự động khởi động dịch vụ khi Odoo khởi động
+## Design Purpose
 
-## Cách sử dụng
+- **Background Processing:** Runs in a separate daemon thread to avoid blocking Odoo's main process.
+- **Automatic Reconnection:** Implements exponential backoff for reconnecting to the broker in case of connection loss.
+- **Message Persistence:** Stores all received messages in the database for auditing and processing.
+- **Service Management:** Provides a clean API for starting, stopping, and monitoring the MQTT service.
 
-### Quản lý dịch vụ MQTT
+## System Architecture
 
-1. **Truy cập menu MQTT Service:**
-   - Đường dẫn: `MQTT → MQTT Service`
-   - Hiển thị thông tin về trạng thái dịch vụ MQTT hiện tại
+### Main Components
 
-2. **Khởi động dịch vụ:**
-   - Nhấn nút "Khởi động Dịch vụ" từ giao diện
-   - Trạng thái dịch vụ sẽ chuyển sang "Đang chạy"
-   - Trạng thái kết nối ban đầu sẽ là "Đang kết nối" và sau đó chuyển sang "Đã kết nối" khi kết nối thành công
+#### 1. MQTT Service (`mqtt.service`)
+- Manages the lifecycle of the MQTT listener service
+- Provides API for starting, stopping, and checking service status
+- Stores service information and thread identifiers
 
-3. **Dừng dịch vụ:**
-   - Nhấn nút "Dừng Dịch vụ" để ngừng lắng nghe MQTT
-   - Trạng thái dịch vụ sẽ chuyển sang "Đã dừng"
+#### 2. MQTTListener Thread
+- Implements a daemon thread that connects to the MQTT broker
+- Handles message receipt via callback methods
+- Manages automatic reconnection with exponential backoff
+- Processes and stores incoming messages
 
-### Gửi tin nhắn MQTT
+#### 3. Message History Storage
+- Uses `mqtt.signal.history` to store message history
+- Records topic, payload, QoS, direction, and timestamps
 
-1. **Truy cập menu Messages:**
-   - Đường dẫn: `MQTT → Messages`
-   - Nhấn "Tạo mới" để tạo tin nhắn mới
+## Data Flow
 
-2. **Cấu hình tin nhắn:**
-   - Chọn Broker và Subscription (topic)
-   - Nhập nội dung tin nhắn vào trường Payload
-   - Thiết lập các tham số QoS và Retain nếu cần
+1. **Service Initialization:**  
+   The `mqtt.service` model starts an MQTTListener thread to handle MQTT communications.
 
-3. **Gửi tin nhắn:**
-   - Nhấn nút "Gửi" để gửi tin nhắn
-   - Tin nhắn sẽ được lưu vào lịch sử gửi
+2. **Connection Establishment:**  
+   The thread connects to the configured MQTT broker and subscribes to topics.
 
-### Xem lịch sử tin nhắn
+3. **Message Handling:**  
+   Incoming messages trigger the `on_message` callback, which processes and stores them.
 
-- Trong form chi tiết tin nhắn, phần "Send/receive history" hiển thị lịch sử gửi/nhận tin nhắn theo từng topic
-- Tin nhắn đến sẽ tự động được ghi vào lịch sử này
+4. **Reconnection:**  
+   If the connection is lost, the thread automatically attempts to reconnect with exponential backoff.
 
-## Luồng hoạt động
+## Models and Fields
 
-### Khởi động dịch vụ
+### MQTT Service (`mqtt.service`)
+| Field            | Type      | Description                                  |
+|------------------|-----------|----------------------------------------------|
+| name             | Char      | Service name (default: 'MQTT Listener Service') |
+| last_start       | Datetime  | Last service start time                      |
+| status           | Selection | Service status (start/stop/error)            |
+| thread_identifier| Char      | Thread identifier for the running thread     |
+| host_info        | Char      | Host system information (computed)           |
+| connection_status| Selection | Connection status (connected/connecting/disconnected/unknown) |
 
-1. **Khởi động tự động:**
-   - Khi module được cài đặt, hàm `_post_init_hook` được gọi để khởi động dịch vụ
-   - Sau mỗi lần khởi động Odoo, hàm `_auto_start_mqtt` tự động kích hoạt dịch vụ
+**Key Methods:**
+- `start_mqtt_service()`: Starts the MQTT listener thread
+- `stop_mqtt_service()`: Safely stops the listener thread
+- `check_mqtt_status()`: Checks current service and connection status
+- `restart_mqtt_service()`: Restarts the service
 
-2. **Khởi động thủ công:**
-   - Người dùng nhấn "Khởi động Dịch vụ" trong giao diện
-   - Hệ thống tạo thread MQTTListener mới với định danh duy nhất
-   - Thread được lưu trong biến toàn cục `MQTT_THREADS` để theo dõi
+## Example Usage
 
-### Lắng nghe MQTT
-
-1. **Kết nối và đăng ký topic:**
-   - Thread kết nối đến broker MQTT (mặc định: broker.emqx.io:1883)
-   - Đăng ký các topic cấu hình: "mqtt/control" và "mqtt/#"
-
-2. **Xử lý tin nhắn:**
-   - Khi nhận được tin nhắn, callback `on_message` được gọi
-   - Tin nhắn được giải mã và lưu vào bảng `mqtt.message.history`
-   - Thông tin về tin nhắn được ghi vào log hệ thống
-
-3. **Duy trì kết nối:**
-   - Thread liên tục kiểm tra trạng thái kết nối
-   - Nếu mất kết nối, tự động thử kết nối lại sau mỗi 5 giây
-   - Gửi ping định kỳ để đảm bảo kết nối vẫn hoạt động
-
-### Gửi tin nhắn
-
-1. **Khởi tạo kết nối tạm thời:**
-   - Khi gửi tin nhắn, hệ thống tạo kết nối tạm thời đến broker
-   - Gửi tin nhắn đến topic với các tham số đã cấu hình
-   - Ngắt kết nối sau khi gửi xong
-
-2. **Cập nhật lịch sử:**
-   - Tin nhắn gửi được lưu vào lịch sử với hướng "send"
-   - Lưu thông tin thời gian, topic, payload, QoS và Retain
-
-### Dừng dịch vụ
-
-1. **Dừng thủ công:**
-   - Người dùng nhấn "Dừng Dịch vụ"
-   - Thread MQTTListener nhận tín hiệu dừng (`stop()`)
-   - Thread ngắt kết nối MQTT và kết thúc an toàn
-   - Thông tin thread được xóa khỏi `MQTT_THREADS`
-
-2. **Dừng tự động:**
-   - Khi gỡ cài đặt module, hàm `_uninstall_hook` dừng dịch vụ
-   - Khi Odoo tắt, thread tự động kết thúc (daemon thread)
-
-## Thông số kỹ thuật
-
-- **Broker mặc định:** broker.emqx.io
-- **Cổng mặc định:** 1883
-- **Topics mặc định:** "mqtt/control" (QoS 0), "mqtt/#" (QoS 0)
-- **Keepalive:** 30 giây
-- **Thời gian tái kết nối:** 5 giây
-- **Client ID format:** odoo_mqtt_listener_{thread_id}
-
-## Xử lý sự cố
-
-### Không thể kết nối đến broker
-
-1. **Kiểm tra kết nối mạng:**
-   - Xác nhận máy chủ có thể truy cập Internet
-   - Kiểm tra tường lửa không chặn cổng 1883
-
-2. **Kiểm tra broker:**
-   - Xác minh broker hoạt động và có thể truy cập
-   - Thử kết nối thủ công:
-   ```
-   telnet broker.emqx.io 1883
-   ```
-
-3. **Xem logs:**
-   - Kiểm tra logs Odoo để xem thông tin lỗi chi tiết
-
-### Không nhận được tin nhắn
-
-1. **Kiểm tra trạng thái dịch vụ:**
-   - Xác nhận dịch vụ đang ở trạng thái "Đang chạy"
-   - Kiểm tra trạng thái kết nối là "Đã kết nối"
-
-2. **Kiểm tra topic:**
-   - Xác nhận đã đăng ký đúng topic
-   - Sử dụng công cụ MQTT khác để kiểm tra topic đang hoạt động
-
-3. **Gửi tin nhắn thử:**
-   - Gửi tin nhắn thử nghiệm đến topic đã đăng ký
-
-### Hiệu suất kém
-
-1. **Giảm số lượng topic:**
-   - Hạn chế sử dụng wildcards (#, +) quá rộng
-   - Chỉ đăng ký các topic cần thiết
-
-2. **Tối ưu xử lý tin nhắn:**
-   - Đảm bảo xử lý tin nhắn hiệu quả trong callback `on_message`
-
-3. **Kiểm tra tài nguyên:**
-   - Đảm bảo server có đủ CPU và RAM
-
-## Yêu cầu hệ thống
-
-- Odoo v16 hoặc cao hơn
-- Python 3.8+
-- Thư viện: paho-mqtt (`pip install paho-mqtt`)
-- Module phụ thuộc: mqtt_abstract_interface
-
-## Phát triển và tùy chỉnh
-
-### Thêm broker mới
-
-Để thêm hoặc thay đổi broker, chỉnh sửa file `controllers/listener.py`:
+### 1. Start the MQTT Listener Service
 
 ```python
-self.broker = "your-broker-address"
-self.port = 1883  # Hoặc cổng khác
+env['mqtt.service'].start_mqtt_service()
 ```
 
-### Thêm xử lý tin nhắn tùy chỉnh
+### 2. Check Service Status
 
-Mở rộng phương thức `on_message` trong file `controllers/listener.py` để thêm logic xử lý:
+```python
+status = env['mqtt.service'].check_mqtt_status()
+# Returns: {'status': 'connected', 'message': 'MQTT Service is connected and running'}
+```
+
+### 3. Stop the Service
+
+```python
+env['mqtt.service'].stop_mqtt_service()
+```
+
+## Thread Management
+
+The module manages MQTT threads using a global dictionary `MQTT_THREADS` which stores references to all active threads. This enables:
+
+1. **Thread Tracking:**
+   ```python
+   # Inside mqtt_service.py
+   MQTT_THREADS[thread_id] = listener_thread
+   ```
+
+2. **Safe Thread Stopping:**
+   ```python
+   # When stopping a thread
+   thread.stop()
+   thread.join(timeout=5)
+   del MQTT_THREADS[thread_id]
+   ```
+
+## Message Handling
+
+When a message is received by the listener, it follows this process:
 
 ```python
 def on_message(self, client, userdata, msg, properties=None):
-    payload = msg.payload.decode(errors='ignore')
-    _logger.info(f"Received message on {msg.topic}: {payload}")
-
-    # Thêm xử lý tùy chỉnh ở đây
-    if msg.topic == "mqtt/special/topic":
-        # Xử lý đặc biệt cho topic này
-        pass
-
-    # Lưu tin nhắn vào database
+    # Update activity timestamp
+    self._last_activity = time.time()
+    
+    # Log message receipt
+    _logger.info(f"Received message on {msg.topic}: {msg.payload.decode()}")
+    
     try:
+        # Create a new cursor to interact with database
         with self.registry.cursor() as cr:
             env = Environment(cr, SUPERUSER_ID, {})
-            env['mqtt.message.history'].create({
+            
+            # Create history record
+            env['mqtt.signal.history'].create({
                 'topic': msg.topic,
                 'message_id': False,
-                'payload': payload,
+                'payload': msg.payload.decode(errors='ignore'),
                 'qos': msg.qos,
                 'direction': 'receive',
                 'retain': msg.retain,
             })
+            
             cr.commit()
     except Exception as e:
         _logger.error(f"Error processing MQTT message: {e}", exc_info=True)
 ```
+
+## Error Handling and Reconnection
+
+The listener implements an advanced reconnection mechanism with exponential backoff:
+
+- Initial reconnect delay: 5 seconds
+- Maximum reconnect delay: 300 seconds (5 minutes)
+- Exponential backoff: Delay increases by a factor of 1.5 after each failed attempt
+
+```python
+# Reconnection logic in MQTTListener.run()
+if not self._connected:
+    try:
+        # Connection attempt
+        self.client.connect_async(self.broker, int(self.port), keepalive)
+        # If connection fails
+        self._current_delay = min(self._current_delay * 1.5, self._max_reconnect_delay)
+    except Exception:
+        # Increase delay for next attempt
+        self._current_delay = min(self._current_delay * 1.5, self._max_reconnect_delay)
+```
+
+## Integration with Other Odoo Modules
+
+The MQTT Listener is designed to integrate with other modules by:
+
+- Storing messages in `mqtt.signal.history` which can be processed by other modules
+- Using the Odoo registry and environment system for thread-safe database operations
+- Implementing a daemon thread that respects Odoo's lifecycle
+
+## Security Configuration
+
+- Credentials for broker connections are stored in the Odoo database
+- Username and password authentication with the broker is supported
+- The service uses SUPERUSER_ID for database operations to ensure proper access rights
+
+## Deployment Instructions
+
+1. Install Python dependencies: `pip install paho-mqtt`
+2. Add the module to your Odoo addons path
+3. Install the module through Odoo's module installation interface
+4. Configure MQTT broker details in the Odoo interface
+5. Start the service using the provided buttons in the UI
+
+## Best Practices
+
+- **Performance Optimization:**
+  - Use specific topic subscriptions rather than wildcards when possible
+  - Set appropriate QoS levels based on message importance
+  - Monitor thread activity and message processing times
+
+- **Error Handling:**
+  - Implement custom error handling for specific message types
+  - Use try/except blocks when processing messages
+  - Log errors with sufficient context for debugging
+
+- **Resource Management:**
+  - Monitor the number of concurrent connections
+  - Be aware of memory usage when storing large messages
+  - Implement message retention policies for database storage
+
+## Debugging and Monitoring
+
+- **Activity Tracking:**
+  The module tracks activity timestamps to detect inactivity:
+  ```python
+  inactive_time = time.time() - self._last_activity
+  if inactive_time > 60:  # If no activity for 60 seconds
+      _logger.warning(f"No MQTT activity for {inactive_time:.0f} seconds, checking connection...")
+  ```
+
+- **Logging:**
+  The module implements comprehensive logging at different levels:
+  ```python
+  # Enable MQTT client logging
+  self.client.enable_logger(_logger)
+  ```
+
+- **Status Checking:**
+  Regular status checks through the `check_mqtt_status()` method provide real-time information about the service.
+
+## References
+
+1. [Paho MQTT Python Documentation](https://www.eclipse.org/paho/index.php?page=clients/python/index.php)
+2. [MQTT Protocol Specification](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
+3. [Odoo Development Documentation](https://www.odoo.com/documentation/16.0/developer.html)
+4. [Threading in Python](https://docs.python.org/3/library/threading.html)

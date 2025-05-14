@@ -16,7 +16,7 @@ MQTT_THREADS = {}
 
 class MQTTService(models.Model):
     _name = 'mqtt.service'
-    _description = 'MQTT Service Manager'
+    _description = 'MQTT Service'
 
     name = fields.Char(string='Service name', default='MQTT Listener Service', readonly=True)
     last_start = fields.Datetime(string='Last boot', readonly=True)

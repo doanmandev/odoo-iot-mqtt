@@ -10,24 +10,23 @@ import logging
 _logger = logging.getLogger(__name__)
 
 def _post_init_hook(cr, registry):
-    """Hook chạy sau khi cài đặt module lần đầu"""
+    """Hook runs after the first module installation"""
     env = api.Environment(cr, SUPERUSER_ID, {})
     env['mqtt.service'].start_mqtt_service()
 
 
 def _uninstall_hook(cr, registry):
-    """Hook chạy trước khi gỡ cài đặt module"""
+    """Hook runs before module uninstall"""
     env = api.Environment(cr, SUPERUSER_ID, {})
     env['mqtt.service'].stop_mqtt_service()
 
 
 def _auto_start_mqtt():
-    """Hàm khởi động MQTT khi Odoo khởi động"""
-    
-    # Lấy danh sách database đang hoạt động
+    """Function to start MQTT when Odoo starts"""
+    # Get a list of active databases
     registries = Registry.registries.d
     
-    # Với mỗi database, thử khởi động MQTT service
+    # For each database, try starting the MQTT service
     for db_name, registry_obj in registries.items():
         try:
             with registry_obj.cursor() as cr:
@@ -37,4 +36,4 @@ def _auto_start_mqtt():
                     env['mqtt.service'].start_mqtt_service()
                     cr.commit()
         except Exception as e:
-            _logger.error(f"Không thể khởi động MQTT service cho database {db_name}: {e}")
+            _logger.error(f"Unable to start MQTT service for database {db_name}: {e}")

@@ -8,10 +8,10 @@
     'license' : 'LGPL-3',
     'data' : [
         'security/ir.model.access.csv',
-        'views/mqtt_broker_connection_views.xml',
+        'views/mqtt_broker_views.xml',
         'views/mqtt_subscription_views.xml',
-        'views/mqtt_message_views.xml',
-        'views/mqtt_message_history_views.xml',
+        'views/mqtt_signal_views.xml',
+        'views/mqtt_signal_history_views.xml',
     ],
     'category' : 'Extra Tools',
     "external_dependencies": {

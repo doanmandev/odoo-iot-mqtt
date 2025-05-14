@@ -49,7 +49,7 @@ class MQTTListener(threading.Thread):
         """Read connection configuration from mqtt.broker.connection and mqtt.subscription records"""
         try:
             #  Find an active broker connection
-            broker_conn = env['mqtt.broker.connection'].search([('connection_status', '=', 'success')], limit=1)
+            broker_conn = env['mqtt.broker'].search([('connection_status', '=', 'success')], limit=1)
             if broker_conn:
                 if broker_conn.host:  # Update only if the host has a value
                     self.broker = broker_conn.host
@@ -105,14 +105,14 @@ class MQTTListener(threading.Thread):
 
                 message_data = {
                     'topic': msg.topic,
-                    'message_id': False,
+                    'signal_id': False,
                     'payload': msg.payload.decode(errors='ignore'),
                     'qos': msg.qos,
                     'direction': 'receive',
                     'retain': msg.retain,
                 }
 
-                env['mqtt.message.history'].create(message_data)
+                env['mqtt.signal.history'].create(message_data)
 
                 _logger.info(f"Saved MQTT messages to database: {msg.topic}")
                 cr.commit()

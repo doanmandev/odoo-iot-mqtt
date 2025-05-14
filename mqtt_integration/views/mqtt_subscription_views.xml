@@ -1,4 +1,5 @@
 <odoo>
+    <!-- Views -->
     <record id="view_mqtt_subscription_tree" model="ir.ui.view">
         <field name="name">mqtt.subscription.tree</field>
         <field name="model">mqtt.subscription</field>
@@ -53,18 +54,22 @@
         </field>
     </record>
 
+    <!-- Actions -->
     <record id="action_mqtt_subscription" model="ir.actions.act_window">
         <field name="name">MQTT Subscriptions</field>
         <field name="res_model">mqtt.subscription</field>
         <field name="view_mode">tree,form</field>
         <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">Create new MQTT subscription.</p>
+            <p class="o_view_nocontent_smiling_face">
+                Create new MQTT subscription.
+            </p>
         </field>
     </record>
 
+    <!-- Menu -->
     <menuitem id="menu_mqtt_subscription"
               name="Subscriptions"
-              parent="menu_mqtt_root"
+              parent="mqtt_integration.menu_mqtt_configuration"
               action="action_mqtt_subscription"
               sequence="2"/>
 </odoo>

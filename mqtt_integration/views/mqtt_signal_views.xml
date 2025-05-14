@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_mqtt_message_tree" model="ir.ui.view">
-        <field name="name">mqtt.message.tree</field>
-        <field name="model">mqtt.message</field>
+    <!-- Views -->
+    <record id="view_mqtt_signal_tree" model="ir.ui.view">
+        <field name="name">mqtt.signal.tree</field>
+        <field name="model">mqtt.signal</field>
         <field name="arch" type="xml">
-            <tree string="MQTT Messages" delete="false">
+            <tree string="MQTT Signal" delete="false">
                 <field name="subscription_id"/>
                 <field name="payload"/>
                 <field name="qos"/>
@@ -13,11 +14,11 @@
         </field>
     </record>
 
-    <record id="view_mqtt_message_form" model="ir.ui.view">
-        <field name="name">mqtt.message.form</field>
-        <field name="model">mqtt.message</field>
+    <record id="view_mqtt_signal_form" model="ir.ui.view">
+        <field name="name">mqtt.signal.form</field>
+        <field name="model">mqtt.signal</field>
         <field name="arch" type="xml">
-            <form string="Send MQTT Message" delete="false">
+            <form string="MQTT Signal" delete="false">
                 <header>
                     <button name="action_send_mqtt" type="object" string="Sent" class="btn-primary"/>
                 </header>
@@ -32,9 +33,9 @@
                     </group>
                     <separator string="Send/receive history (by topic)"/>
                     <field name="history_ids" nolabel="1" readonly="1" options="{'no_open': True, 'no_create': True, 'no_delete': True}">
-                        <tree string="MQTT Message history" create="false" edit="false" delete="false">
+                        <tree string="MQTT Signal history" create="false" edit="false" delete="false">
                             <field name="display_name"/>
-                            <field name="message_id"/>
+                            <field name="signal_id"/>
                             <field name="payload"/>
                             <field name="direction"/>
                             <field name="qos" optional="hide"/>
@@ -51,11 +52,23 @@
         </field>
     </record>
 
-    <record id="view_mqtt_message_action" model="ir.actions.act_window">
-        <field name="name">MQTT Messages</field>
-        <field name="res_model">mqtt.message</field>
+    <!-- Actions -->
+    <record id="view_mqtt_signal_action" model="ir.actions.act_window">
+        <field name="name">MQTT Signal</field>
+        <field name="res_model">mqtt.signal</field>
         <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create new a Signal.
+            </p>
+        </field>
     </record>
-    
-    <menuitem id="menu_mqtt_message" name="Messages" parent="menu_mqtt_root" action="view_mqtt_message_action" sequence="3"/>
+
+    <!-- Menu -->
+    <menuitem id="menu_mqtt_signal"
+              name="Signal"
+              parent="mqtt_integration.menu_mqtt_root"
+              action="view_mqtt_signal_action"
+              sequence="3"/>
+
 </odoo>

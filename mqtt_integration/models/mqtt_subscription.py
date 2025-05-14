@@ -8,13 +8,13 @@ import threading
 
 _logger = logging.getLogger(__name__)
 
-class MqttSubscription(models.Model):
+class MQTTSubscription(models.Model):
     _name = 'mqtt.subscription'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'MQTT Subscription'
     _rec_name = 'display_name'
 
-    broker_id = fields.Many2one('mqtt.broker.connection', string='MQTT Broker', required=True)
+    broker_id = fields.Many2one('mqtt.broker', string='MQTT Broker', required=True)
     topic = fields.Char(string='Topic', required=True)
     qos = fields.Integer(string='QoS', default=0)
     no_local_flag = fields.Boolean(string='No Local Flag', default=False)
