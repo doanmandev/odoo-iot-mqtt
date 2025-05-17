@@ -4,7 +4,7 @@
         <field name="name">mqtt.subscription.tree</field>
         <field name="model">mqtt.subscription</field>
         <field name="arch" type="xml">
-            <tree string="MQTT Subscriptions" delete="false">
+            <tree string="Subscriptions" delete="false">
                 <field name="display_name"/>
                 <field name="broker_id"/>
                 <field name="topic"/>
@@ -20,7 +20,7 @@
         <field name="name">mqtt.subscription.form</field>
         <field name="model">mqtt.subscription</field>
         <field name="arch" type="xml">
-            <form string="MQTT Subscription" delete="false">
+            <form string="Subscription" delete="false">
                 <header>
                     <field name="subscription_status" widget="statusbar" statusbar_visible="subscribed,subscribing,fail"/>
                     <button name="subscribe_mqtt" type="object"
@@ -56,12 +56,12 @@
 
     <!-- Actions -->
     <record id="action_mqtt_subscription" model="ir.actions.act_window">
-        <field name="name">MQTT Subscriptions</field>
+        <field name="name">Subscriptions</field>
         <field name="res_model">mqtt.subscription</field>
         <field name="view_mode">tree,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Create new MQTT subscription.
+                Create new subscription.
             </p>
         </field>
     </record>

@@ -12,8 +12,8 @@ class MQTTSignal(models.Model):
     _description = 'MQTT Signal'
     _rec_name = 'display_name'
 
-    broker_id = fields.Many2one('mqtt.broker', string='MQTT Broker', required=True)
-    subscription_id = fields.Many2one('mqtt.subscription', string='MQTT Subscription', required=True)
+    broker_id = fields.Many2one('mqtt.broker', string='Broker', required=True)
+    subscription_id = fields.Many2one('mqtt.subscription', string='Subscription', required=True)
     history_ids = fields.One2many('mqtt.signal.history', 'signal_id', string='Signal History')
 
     topic = fields.Char(string='Topic', related='subscription_id.topic', store=True)
@@ -35,9 +35,9 @@ class MQTTSignal(models.Model):
             subscription = rec.subscription_id
 
             if not broker:
-                raise UserError('Not found MQTT Broker!')
+                raise UserError('Not found Broker!')
             if not subscription:
-                raise UserError('Not found MQTT Subscription!')
+                raise UserError('Not found Subscription!')
 
             try:
                 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
