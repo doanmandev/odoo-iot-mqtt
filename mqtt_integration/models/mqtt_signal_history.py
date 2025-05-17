@@ -20,4 +20,12 @@ class MQTTSignalHistory(models.Model):
     def _compute_display_name(self):
         for rec in self:
             subscription_name = rec.signal_id.subscription_id.topic or "Unknown Signal Broker"
-            rec.display_name = f"{subscription_name} - {rec.timestamp}"
+            
+            # Convert timestamp to user's timezone
+            if rec.timestamp:
+                user_tz = self.env.user.tz or self._context.get('tz') or 'UTC'
+                local_timestamp = fields.Datetime.context_timestamp(self, rec.timestamp)
+                formatted_time = local_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                rec.display_name = f"{subscription_name} - {formatted_time}"
+            else:
+                rec.display_name = f"{subscription_name} - No timestamp"

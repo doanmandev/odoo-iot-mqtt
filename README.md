@@ -17,7 +17,7 @@ The Odoo IoT MQTT module provides a robust integration between Odoo ERP and IoT 
 
 ## Installation
 ### Requirements
-- Odoo 16.0 or newer
+- Odoo 16.0
 - Python 3.8+
 - paho-mqtt library
 
