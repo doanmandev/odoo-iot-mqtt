@@ -5,7 +5,7 @@
         <field name="name">mqtt.broker.tree</field>
         <field name="model">mqtt.broker</field>
         <field name="arch" type="xml">
-            <tree string="MQTT Brokers">
+            <tree string="Brokers">
                 <field name="name"/>
                 <field name="username"/>
                 <field name="client_id"/>
@@ -21,7 +21,7 @@
         <field name="name">mqtt.broker.form</field>
         <field name="model">mqtt.broker</field>
         <field name="arch" type="xml">
-            <form string="MQTT Broker">
+            <form string="Brokers">
                 <header>
                     <field name="connection_status" widget="statusbar" statusbar_visible="unknown,success,fail"/>
                     <button name="action_check_connection"
@@ -66,7 +66,7 @@
 
     <!-- Actions -->
     <record id="action_mqtt_broker" model="ir.actions.act_window">
-        <field name="name">MQTT Brokers</field>
+        <field name="name">Brokers</field>
         <field name="res_model">mqtt.broker</field>
         <field name="view_mode">tree,form</field>
         <field name="help" type="html">
@@ -86,8 +86,8 @@
               parent="mqtt_integration.menu_mqtt_root"
               sequence="100"/>
 
-    <menuitem id="menu_mqtt_broker"
-              name="Broker"
+    <menuitem id="menu_mqtt_brokers"
+              name="Brokers"
               parent="mqtt_integration.menu_mqtt_configuration"
               action="action_mqtt_broker"
               sequence="1"/>

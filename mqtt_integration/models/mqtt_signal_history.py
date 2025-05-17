@@ -7,7 +7,7 @@ class MQTTSignalHistory(models.Model):
     _rec_name = 'display_name'
     _order = "timestamp desc"
 
-    signal_id = fields.Many2one('mqtt.signal', string='MQTT Signal')
+    signal_id = fields.Many2one('mqtt.signal', string='Signal')
     payload = fields.Text(string='Payload', required=True)
     topic = fields.Char(string='Topic')
     qos = fields.Integer(string='QoS')
@@ -23,7 +23,6 @@ class MQTTSignalHistory(models.Model):
             
             # Convert timestamp to user's timezone
             if rec.timestamp:
-                user_tz = self.env.user.tz or self._context.get('tz') or 'UTC'
                 local_timestamp = fields.Datetime.context_timestamp(self, rec.timestamp)
                 formatted_time = local_timestamp.strftime('%Y-%m-%d %H:%M:%S')
                 rec.display_name = f"{subscription_name} - {formatted_time}"

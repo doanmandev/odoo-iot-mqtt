@@ -4,7 +4,7 @@
         <field name="name">mqtt.service.tree</field>
         <field name="model">mqtt.service</field>
         <field name="arch" type="xml">
-            <tree string="MQTT Service">
+            <tree string="Service">
                 <field name="name" />
                 <field name="last_start" />
                 <field name="status" />
@@ -17,11 +17,11 @@
         <field name="name">mqtt.service.form</field>
         <field name="model">mqtt.service</field>
         <field name="arch" type="xml">
-            <form string="MQTT Service">
+            <form string="Service">
                 <header>
-                    <button name="start_mqtt_service" string="Khởi động Dịch vụ" type="object" class="oe_highlight"
+                    <button name="start_mqtt_service" string="Start service" type="object" class="oe_highlight"
                             attrs="{'invisible': [('status', '=', 'start')]}" />
-                    <button name="stop_mqtt_service" string="Dừng Dịch vụ" type="object" 
+                    <button name="stop_mqtt_service" string="Stop service" type="object"
                             attrs="{'invisible': [('status', '!=', 'start')]}" />
                 </header>
                 <sheet>
@@ -39,14 +39,14 @@
     </record>
 
     <record id="action_mqtt_service" model="ir.actions.act_window">
-        <field name="name">MQTT Service</field>
+        <field name="name">Service</field>
         <field name="res_model">mqtt.service</field>
         <field name="view_mode">tree,form</field>
     </record>
 
     <menuitem id="menu_mqtt_service" 
-              name="MQTT Service"
-              parent="mqtt_integration.menu_mqtt_root"
+              name="Service"
+              parent="mqtt_integration.menu_mqtt_configuration"
               action="action_mqtt_service"
               sequence="40"/>
 </odoo>

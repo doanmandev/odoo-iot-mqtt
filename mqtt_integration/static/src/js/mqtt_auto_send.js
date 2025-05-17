@@ -120,7 +120,7 @@ odoo.define('mqtt_signal.auto_send', function (require) {
                 }).guardedCatch(function (error) {
                     console.error("Error sending MQTT:", error);
                 }).finally(function () {
-                    // Lên lịch gửi tiếp theo sau 1 giây
+                    // Schedule next send after 1 second
                     if (self.isSending) {
                         self.autoSendTimer = setTimeout(function () {
                             sendMQTT();

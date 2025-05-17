@@ -38,7 +38,7 @@ class MQTTBroker(models.Model):
     def action_check_connection(self):
         for rec in self:
             try:
-                # Dùng timeout ngắn cho connect
+                # Use short timeout for connect
                 old_timeout = socket.getdefaulttimeout()
                 socket.setdefaulttimeout(rec.connect_timeout)
                 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
