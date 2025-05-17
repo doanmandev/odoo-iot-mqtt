@@ -2,6 +2,9 @@
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 import paho.mqtt.client as mqtt
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class MQTTSignal(models.Model):
     _name = 'mqtt.signal'
@@ -57,3 +60,86 @@ class MQTTSignal(models.Model):
                 })
             except Exception as e:
                 raise UserError(f'Send signal Fail: {e}')
+
+    def action_auto_send_mqtt(self):
+        """
+            Set to automatically send MQTT.
+            This action will be called from a button in the interface.
+        """
+        self.ensure_one()
+        _logger.info(f"Auto send MQTT triggered for record: {self.id}")
+
+        # Find the most recent sending in history
+        last_sent = self.env['mqtt.signal.history'].search([
+            ('signal_id', '=', self.id),
+            ('direction', '=', 'send')
+        ], limit=1, order='timestamp desc')
+
+        last_sent_timestamp = False
+        if last_sent:
+            last_sent_timestamp = fields.Datetime.to_string(last_sent.timestamp)
+
+        # Returns the action so that the JavaScript client can process it
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'auto_send_mqtt',
+            'target': 'new',
+            'record_id': self.id,
+            'last_sent_timestamp': last_sent_timestamp
+        }
+    
+    @api.model
+    def get_last_mqtt_send(self, signal_id):
+        """Get details about the last send for a specific signal"""
+        signal = self.browse(signal_id)
+        last_sent = self.env['mqtt.signal.history'].search([
+            ('signal_id', '=', signal.id),
+            ('direction', '=', 'send')
+        ], limit=1, order='timestamp desc')
+        
+        if not last_sent:
+            return {
+                'success': False,
+                'message': 'No previous send history found',
+                'data': False
+            }
+        
+        return {
+            'success': True,
+            'message': 'Last send details retrieved',
+            'data': {
+                'timestamp': fields.Datetime.to_string(last_sent.timestamp),
+                'payload': last_sent.payload,
+                'topic': last_sent.topic,
+                'qos': last_sent.qos,
+                'retain': last_sent.retain
+            }
+        }
+
+    @api.model
+    def get_mqtt_send_stats(self, signal_id):
+        """Get statistical information about the sending history for a specific signal"""
+        signal = self.browse(signal_id)
+        
+        # Count the total number of submissions
+        total_sent = self.env['mqtt.signal.history'].search_count([
+            ('signal_id', '=', signal.id),
+            ('direction', '=', 'send')
+        ])
+        
+        # Get the first and most recent submission
+        first_sent = self.env['mqtt.signal.history'].search([
+            ('signal_id', '=', signal.id),
+            ('direction', '=', 'send')
+        ], limit=1, order='timestamp asc')
+        
+        last_sent = self.env['mqtt.signal.history'].search([
+            ('signal_id', '=', signal.id),
+            ('direction', '=', 'send')
+        ], limit=1, order='timestamp desc')
+        
+        return {
+            'total_sent': total_sent,
+            'first_sent': fields.Datetime.to_string(first_sent.timestamp) if first_sent else False,
+            'last_sent': fields.Datetime.to_string(last_sent.timestamp) if last_sent else False,
+        }

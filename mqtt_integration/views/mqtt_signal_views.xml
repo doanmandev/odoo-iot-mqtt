@@ -21,6 +21,9 @@
             <form string="MQTT Signal" delete="false">
                 <header>
                     <button name="action_send_mqtt" type="object" string="Sent" class="btn-primary"/>
+                    <button name="action_auto_send_mqtt" string="Auto sent" type="object"
+                            class="oe_highlight" data-hotkey="shift+a"/>
+
                 </header>
                 <sheet>
                     <group>

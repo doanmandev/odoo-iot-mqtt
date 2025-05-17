@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, registry
+from odoo.api import Environment
 from odoo.exceptions import UserError
+
 import paho.mqtt.client as mqtt
 import logging
-from odoo.api import Environment
 import threading
 
 _logger = logging.getLogger(__name__)
