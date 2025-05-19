@@ -237,6 +237,11 @@ The MQTT Listener is designed to integrate with other modules by:
 - **Status Checking:**
   Regular status checks through the `check_mqtt_status()` method provide real-time information about the service.
 
+> ⚠️ **Note: This module is under development, so there are some limitations as follows:**
+> - The first time you install, this module will take the default topics as `mqtt/test` to run, 
+so it will not receive a signal, so you have to stop and restart the service.
+> - Currently, when restarting odoo, you need to check and restart the service of this module
+
 ## References
 
 1. [Paho MQTT Python Documentation](https://www.eclipse.org/paho/index.php?page=clients/python/index.php)
