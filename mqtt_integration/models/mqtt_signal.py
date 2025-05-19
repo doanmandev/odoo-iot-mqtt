@@ -53,6 +53,7 @@ class MQTTSignal(models.Model):
                 # Save history
                 self.env['mqtt.signal.history'].create({
                     'signal_id': rec.id,
+                    'topic': rec.topic,
                     'payload': rec.payload,
                     'qos': rec.qos,
                     'retain': rec.retain,

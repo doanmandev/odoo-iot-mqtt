@@ -101,18 +101,23 @@ class MQTTListener(threading.Thread):
         _logger.info(f"Received message on {msg.topic}: {msg.payload.decode()}")
         try:
             with self.registry.cursor() as cr:
+                # env model in Odoo
                 env = Environment(cr, SUPERUSER_ID, {})
+                signal_env = env['mqtt.signal']
+                history_env = env['mqtt.signal.history']
+
+                signal_id = signal_env.search([('topic', '=', msg.topic)], limit=1).id or False
 
                 message_data = {
                     'topic': msg.topic,
-                    'signal_id': False,
+                    'signal_id': signal_id,
                     'payload': msg.payload.decode(errors='ignore'),
                     'qos': msg.qos,
                     'direction': 'receive',
                     'retain': msg.retain,
                 }
 
-                env['mqtt.signal.history'].create(message_data)
+                history_env.create(message_data)
 
                 _logger.info(f"Saved MQTT messages to database: {msg.topic}")
                 cr.commit()
