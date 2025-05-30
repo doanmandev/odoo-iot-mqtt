@@ -22,7 +22,7 @@
                     <button name="start_mqtt_service" string="Start service" type="object" class="oe_highlight"
                             invisible="status == 'start'" />
                     <button name="stop_mqtt_service" string="Stop service" type="object"
-                            invisible="status == 'start'" />
+                            invisible="status == 'stop'" />
                 </header>
                 <sheet>
                     <group>

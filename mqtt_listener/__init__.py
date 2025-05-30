@@ -9,9 +9,8 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-def _post_init_hook(cr, registry):
+def _post_init_hook(env):
     """Hook runs after the first module installation"""
-    env = api.Environment(cr, SUPERUSER_ID, {})
     env['mqtt.service'].start_mqtt_service()
 
 

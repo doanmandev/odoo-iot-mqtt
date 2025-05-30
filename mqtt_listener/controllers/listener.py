@@ -70,7 +70,7 @@ class MQTTListener(threading.Thread):
                     _logger.info(f"Loaded broker configuration from '{broker_conn.name}'")
             
             # Read subscription topics from the database
-            subscriptions = env['mqtt.subscription'].search([('subscribed', '=', True)])
+            subscriptions = env['mqtt.subscription'].search([('subscription_status', '=', 'subscribed')])
             if subscriptions:
                 self.topics = [(sub.topic, sub.qos) for sub in subscriptions]
                 _logger.info(f"Loaded {len(self.topics)} subscription topics")
@@ -111,9 +111,10 @@ class MQTTListener(threading.Thread):
                 message_data = {
                     'topic': msg.topic,
                     'signal_id': signal_id,
+                    'user_id': env.user.id, # Use current user
                     'payload': msg.payload.decode(errors='ignore'),
                     'qos': msg.qos,
-                    'direction': 'receive',
+                    'direction': 'incoming',
                     'retain': msg.retain,
                 }
 
