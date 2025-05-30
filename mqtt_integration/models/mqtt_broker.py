@@ -6,6 +6,7 @@ import random
 import string
 import socket
 
+
 class MQTTBroker(models.Model):
     _name = 'mqtt.broker'
     _inherit = ['mail.thread', 'mail.activity.mixin']
@@ -18,7 +19,7 @@ class MQTTBroker(models.Model):
     host = fields.Char(string='Host', default='broker.emqx.io', required=True, tracking=True)
     port = fields.Char(string='Port', default='1883', required=True, tracking=True)
     client_id = fields.Char(string='Client ID', required=True, readonly=True, copy=False,
-                           default=lambda self: self._generate_client_id())
+                            default=lambda self: self._generate_client_id())
     username = fields.Char(string='Username', default='', tracking=True)
     password = fields.Char(string='Password', default='')
     keepalive = fields.Integer(string='Keepalive (s)', default=60)
@@ -31,6 +32,10 @@ class MQTTBroker(models.Model):
         ('fail', 'Fail'),
     ], string='Connection Status', default='unknown', readonly=True, tracking=True)
 
+    _sql_constraints = [
+        ('name_uniq', 'unique(name)', 'Configuration brokers name must be unique!')
+    ]
+
     @api.model
     def _generate_client_id(self):
         return 'client_' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
@@ -38,7 +43,7 @@ class MQTTBroker(models.Model):
     def action_check_connection(self):
         for rec in self:
             try:
-                # Use short timeout for connect
+                # Use short timeout for connecting
                 old_timeout = socket.getdefaulttimeout()
                 socket.setdefaulttimeout(rec.connect_timeout)
                 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -61,3 +66,18 @@ class MQTTBroker(models.Model):
                 rec.connection_message = str(e)
                 socket.setdefaulttimeout(old_timeout)
                 raise UserError(f'Failed to connect: {e}')
+
+    def action_reconnect(self):
+        """Reconnect to the broker if disconnected."""
+        for rec in self:
+            return rec.action_check_connection()
+        return True
+
+    @api.model
+    def _cron_check_all_connections(self):
+        brokers = self.search([('connection_status', '=', 'fail')])
+        for broker in brokers:
+            try:
+                broker.action_check_connection()
+            except Exception as e:
+                pass

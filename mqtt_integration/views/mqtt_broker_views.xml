@@ -26,8 +26,12 @@
                     <field name="connection_status" widget="statusbar" statusbar_visible="unknown,success,fail"/>
                     <button name="action_check_connection"
                             type="object" string="Connect"
-                            attrs="{'invisible': [('connection_status', '=', 'success')]}"
+                            invisible="connection_status == 'success'"
                             class="btn-primary"/>
+                    <button name="action_reconnect"
+                            type="object" string="Reconnect"
+                            invisible="connection_status not in ['fail', False]"
+                            class="btn-secondary"/>
                 </header>
                 <sheet>
                     <group>

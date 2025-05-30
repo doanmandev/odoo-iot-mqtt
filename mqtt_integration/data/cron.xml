@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ir_cron_mqtt_broker_check_connection" model="ir.cron">
+        <field name="name">MQTT Broker: Check Connection</field>
+        <field name="model_id" ref="model_mqtt_broker"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_check_all_connections()</field>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="numbercall">-1</field>
+        <field name="active">True</field>
+    </record>
+</odoo>
+

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
 
+
 class MQTTSignalHistory(models.Model):
     _name = 'mqtt.signal.history'
     _description = 'MQTT Signal History'
@@ -12,9 +13,10 @@ class MQTTSignalHistory(models.Model):
     topic = fields.Char(string='Topic')
     qos = fields.Integer(string='QoS')
     retain = fields.Boolean(string='Retain')
-    direction = fields.Selection([('send', 'Send'), ('receive', 'Received')], string='Direction', required=True)
+    direction = fields.Selection([('outgoing', 'Outgoing'), ('incoming', 'Incoming')], string='Direction', required=True)
     timestamp = fields.Datetime(string='Timestamp', default=fields.Datetime.now)
     display_name = fields.Char(string="Display Name", compute="_compute_display_name", store=True)
+    user_id = fields.Many2one('res.users', string='User', required=True)
 
     @api.depends('signal_id.subscription_id', 'timestamp')
     def _compute_display_name(self):

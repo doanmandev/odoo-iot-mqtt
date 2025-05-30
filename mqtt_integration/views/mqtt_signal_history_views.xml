@@ -8,8 +8,8 @@
             <tree string="Send History" create="false" delete="false">
                 <field name="timestamp"/>
                 <field name="signal_id" readonly="1"/>
-                <field name="topic" invisible="1"/>
                 <field name="payload"/>
+                <field name="topic" optional="hide"/>
                 <field name="direction" optional="hide"/>
                 <field name="qos" optional="hide"/>
                 <field name="retain" optional="hide"/>
@@ -24,8 +24,8 @@
             <tree string="Received History" create="false" delete="false">
                 <field name="timestamp"/>
                 <field name="signal_id" readonly="1"/>
-                <field name="topic" invisible="1"/>
                 <field name="payload"/>
+                <field name="topic" optional="hide"/>
                 <field name="direction" optional="hide"/>
                 <field name="qos" optional="hide"/>
                 <field name="retain" optional="hide"/>
@@ -39,7 +39,7 @@
         <field name="res_model">mqtt.signal.history</field>
         <field name="view_mode">tree</field>
         <field name="view_id" ref="view_mqtt_send_signal_history_tree"/>
-        <field name="domain">[('direction', '=', 'send')]</field>
+        <field name="domain">[('direction', '=', 'outgoing')]</field>
     </record>
 
     <record id="action_mqtt_received_signal" model="ir.actions.act_window">
@@ -47,7 +47,7 @@
         <field name="res_model">mqtt.signal.history</field>
         <field name="view_mode">tree</field>
         <field name="view_id" ref="view_mqtt_received_signal_history_tree"/>
-        <field name="domain">[('direction', '=', 'receive')]</field>
+        <field name="domain">[('direction', '=', 'incoming')]</field>
     </record>
 
     <!-- Menu -->

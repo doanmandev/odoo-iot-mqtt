@@ -6,6 +6,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+
 class MQTTSignal(models.Model):
     _name = 'mqtt.signal'
     _inherit = ['mail.thread', 'mail.activity.mixin']
@@ -54,10 +55,11 @@ class MQTTSignal(models.Model):
                 self.env['mqtt.signal.history'].create({
                     'signal_id': rec.id,
                     'topic': rec.topic,
+                    'user_id': self.env.user.id,
                     'payload': rec.payload,
                     'qos': rec.qos,
                     'retain': rec.retain,
-                    'direction': 'send',
+                    'direction': 'outgoing',
                 })
             except Exception as e:
                 raise UserError(f'Send signal Fail: {e}')
@@ -73,7 +75,7 @@ class MQTTSignal(models.Model):
         # Find the most recent sending in history
         last_sent = self.env['mqtt.signal.history'].search([
             ('signal_id', '=', self.id),
-            ('direction', '=', 'send')
+            ('direction', '=', 'outgoing')
         ], limit=1, order='timestamp desc')
 
         last_sent_timestamp = False
@@ -95,7 +97,7 @@ class MQTTSignal(models.Model):
         signal = self.browse(signal_id)
         last_sent = self.env['mqtt.signal.history'].search([
             ('signal_id', '=', signal.id),
-            ('direction', '=', 'send')
+            ('direction', '=', 'outgoing')
         ], limit=1, order='timestamp desc')
         
         if not last_sent:
@@ -125,18 +127,18 @@ class MQTTSignal(models.Model):
         # Count the total number of submissions
         total_sent = self.env['mqtt.signal.history'].search_count([
             ('signal_id', '=', signal.id),
-            ('direction', '=', 'send')
+            ('direction', '=', 'outgoing')
         ])
         
         # Get the first and most recent submission
         first_sent = self.env['mqtt.signal.history'].search([
             ('signal_id', '=', signal.id),
-            ('direction', '=', 'send')
+            ('direction', '=', 'outgoing')
         ], limit=1, order='timestamp asc')
         
         last_sent = self.env['mqtt.signal.history'].search([
             ('signal_id', '=', signal.id),
-            ('direction', '=', 'send')
+            ('direction', '=', 'outgoing')
         ], limit=1, order='timestamp desc')
         
         return {

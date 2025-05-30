@@ -42,15 +42,13 @@ Requirements: paho-mqtt
         'views/mqtt_subscription_views.xml',
         'views/mqtt_signal_views.xml',
         'views/mqtt_signal_history_views.xml',
+        'views/mqtt_signal_views.xml',
+        'data/cron.xml',
     ],
     'demo': [],
     'installable': True,
     'application': True,
     'assets': {
-        'web.assets_backend': [
-            'mqtt_integration/static/src/js/mqtt_auto_send.js',
-            'mqtt_integration/static/src/xml/mqtt_auto_send.xml',
-        ],
     },
     'license': 'LGPL-3',
 }

@@ -9,7 +9,6 @@
                 <field name="broker_id"/>
                 <field name="topic"/>
                 <field name="qos"/>
-                <field name="subscribed"/>
                 <field name="subscription_time"/>
                 <field name="subscription_status"/>
             </tree>
@@ -22,26 +21,27 @@
         <field name="arch" type="xml">
             <form string="Subscription" delete="false">
                 <header>
-                    <field name="subscription_status" widget="statusbar" statusbar_visible="subscribed,subscribing,fail"/>
+                    <field name="subscription_status" widget="statusbar"
+                           statusbar_visible="subscribed,subscribing,fail"/>
+                    <button name="subscribe_mqtt" type="object"
+                            string="Submit"
+                            invisible="subscription_status not in ['fail', False]"
+                            class="btn-primary"/>
                     <button name="subscribe_mqtt" type="object"
                             string="Subscribe"
-                            attrs="{
-                            'invisible': [('subscribed', '=', True)],
-                            'readonly': [('subscription_in_progress', '=', True)
-                            ]}"
+                            invisible="subscription_status != 'subscribing'"
                             class="btn-primary"/>
-                    <field name="subscription_in_progress" invisible="1"/>
                 </header>
                 <sheet>
                     <group>
                         <field name="display_name" readonly="1"/>
                         <field name="broker_id"/>
+                        <field name="user_id"/>
                         <field name="topic"/>
                         <field name="qos"/>
                         <field name="no_local_flag"/>
                         <field name="retain_as_published_flag"/>
                         <field name="retain_handling"/>
-                        <field name="subscribed" readonly="1"/>
                         <field name="subscription_time" readonly="1"/>
                     </group>
                 </sheet>

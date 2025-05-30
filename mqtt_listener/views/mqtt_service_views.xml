@@ -20,9 +20,9 @@
             <form string="Service">
                 <header>
                     <button name="start_mqtt_service" string="Start service" type="object" class="oe_highlight"
-                            attrs="{'invisible': [('status', '=', 'start')]}" />
+                            invisible="status == 'start'" />
                     <button name="stop_mqtt_service" string="Stop service" type="object"
-                            attrs="{'invisible': [('status', '!=', 'start')]}" />
+                            invisible="status == 'start'" />
                 </header>
                 <sheet>
                     <group>
