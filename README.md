@@ -30,6 +30,14 @@ This solution consists of two tightly integrated Odoo modules:
 | `mqtt_integration` | Broker setup, signal sending, message history             |
 | `mqtt_listener`    | Background service, realtime listener, reconnection logic |
 
+## 📦 Module Overviews
+
+### `mqtt_integration`
+Handles broker configuration, subscription management, and sending MQTT signals from Odoo. All messages are logged in `mqtt.signal.history`.
+
+### `mqtt_listener`
+Runs a background listener service that subscribes to topics, performs automatic reconnection, and records incoming messages in `mqtt.signal.history`.
+
 ---
 
 ## ⚙️ Installation
