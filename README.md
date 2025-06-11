@@ -18,7 +18,7 @@ This module enables **real-time, bidirectional communication** between Odoo and 
 * 🕒 **Message Logging & History**
 * ♻️ **Automatic Reconnection with Backoff**
 * ⚙️ **Control MQTT Services from UI**
-
+* 🔖 **MQTT v5 User Properties**
 ---
 
 ## 🧱 Architecture
@@ -78,11 +78,12 @@ pip install paho-mqtt
 ### 🔹 Send MQTT Signal
 
 ```python
-self.env['mqtt.signal'].create({
+self.env['mqtt.publish.signal'].create({
     'broker_id': self.broker_id.id,
     'subscription_id': self.subscription_id.id,
     'payload': '{"command": "turn_on"}',
     'qos': 1,
+    'user_property_ids': [(0, 0, {'key': 'source', 'value': 'odoo'})],
 }).action_send_mqtt()
 ```
 
@@ -96,7 +97,7 @@ status = self.env['mqtt.service'].check_mqtt_status()
 ### 🔹 Query Message History
 
 ```python
-messages = self.env['mqtt.signal.history'].search([
+messages = self.env['mqtt.publish.signal.history'].search([
     ('direction', '=', 'receive'),
     ('topic', 'like', 'sensors/%')
 ], limit=10, order='timestamp desc')
@@ -110,7 +111,7 @@ messages = self.env['mqtt.signal.history'].search([
 * 🧵 **Thread-Safe Listener Management**
 * ⚠️ **Robust Error Handling**
 * 🔄 **Customizable Message Handlers**
-
+* 🗒️ **Store MQTT User Properties**
 ---
 
 ## ✅ Best Practices
@@ -139,7 +140,7 @@ We welcome your ideas and improvements!
 
 ## 📄 License
 
-Licensed under the **LGPL-3.0**. See [LICENSE](./LICENSE) for details.
+Licensed under the **GPL-3.0**. See [LICENSE](./LICENSE) for details.
 
 ---
 

@@ -45,5 +45,5 @@ Requirements: paho-mqtt, mqtt_integration
     'uninstall_hook': '_uninstall_hook',
     'post_load': '_auto_start_mqtt',
     'assets': {},
-    'license': 'LGPL-3',
+    'license': 'GPL-3',
 }

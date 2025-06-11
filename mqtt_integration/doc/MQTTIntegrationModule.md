@@ -47,16 +47,16 @@ This module acts as a bridge between Odoo and IoT devices or external services, 
 
 #### 2. MQTT Subscription (`mqtt.subscription`)
 - Manages subscriptions to MQTT topics
-- Handles subscription status and allows subscribing via `subscribe_mqtt`
+- Handles subscription status and allows subscribing via `action_subscribe`
 - Tracks broker, topic, QoS, and subscription state
 
-#### 3. MQTT Signal (`mqtt.signal`)
+#### 3. MQTT Signal (`mqtt.publish.signal`)
 - Represents messages to be sent to MQTT topics
 - Linked to a broker and a subscription
 - Allows sending messages via `action_send_mqtt`
 - Stores payload, QoS, retain flag, and send time
 
-#### 4. MQTT Signal History (`mqtt.signal.history`)
+#### 4. MQTT Signal History (`mqtt.publish.signal.history`)
 - Stores history of sent and received messages
 - Tracks signal, payload, topic, QoS, retain, direction (send/receive), and timestamp
 
@@ -69,85 +69,10 @@ This module acts as a bridge between Odoo and IoT devices or external services, 
    Users create subscriptions (`mqtt.subscription`) to topics on a broker.
 
 3. **Message Sending:**  
-   Users create and send signals (`mqtt.signal`) to a topic. Each sent message is logged in history (`mqtt.signal.history`).
+   Users create and send signals (`mqtt.publish.signal`) to a topic. Each sent message is logged in history (`mqtt.signal.history`).
 
 4. **Message Receiving:**  
    Subscribed topics can receive messages, which are also logged in history.
-
-## Models and Fields
-
-### MQTT Broker (`mqtt.broker`)
-| Field             | Type      | Description                              |
-|-------------------|-----------|------------------------------------------|
-| name              | Char      | Broker Name                              |
-| url_scheme        | Selection | URI scheme (e.g., mqtt://, ws://)        |
-| host              | Char      | Hostname or IP address                   |
-| port              | Char      | Connection port                          |
-| client_id         | Char      | Unique client ID                         |
-| username          | Char      | Username for authentication              |
-| password          | Char      | Password for authentication              |
-| keepalive         | Integer   | Keepalive interval (seconds)             |
-| connect_timeout   | Integer   | Connection timeout (seconds)             |
-| note              | Text      | Notes                                    |
-| connection_message| Char      | Last connection message                  |
-| connection_status | Selection | Connection status (unknown/success/fail) |
-
-**Key Method:**  
-- `action_check_connection`: Checks connectivity to the configured MQTT broker.
-
----
-
-### MQTT Subscription (`mqtt.subscription`)
-| Field                     | Type      | Description                                  |
-|---------------------------|-----------|----------------------------------------------|
-| broker_id                 | Many2one  | Linked MQTT broker                           |
-| topic                     | Char      | Topic to subscribe to                        |
-| qos                       | Integer   | Quality of Service                           |
-| no_local_flag             | Boolean   | No local flag                                |
-| retain_as_published_flag  | Boolean   | Retain as published flag                     |
-| retain_handling           | Integer   | Retain handling option                       |
-| subscribed                | Boolean   | Subscription status                          |
-| subscription_time         | Datetime  | Time of subscription                         |
-| display_name              | Char      | Computed display name                        |
-| subscription_in_progress  | Boolean   | Is subscription in progress                  |
-| subscription_status       | Selection | Subscription status (subscribed, etc.)       |
-
-**Key Method:**  
-- `subscribe_mqtt`: Subscribes to the specified topic on the broker.
-
----
-
-### MQTT Signal (`mqtt.signal`)
-| Field         | Type      | Description                                  |
-|---------------|-----------|----------------------------------------------|
-| broker_id     | Many2one  | Linked MQTT broker                           |
-| subscription_id| Many2one | Linked MQTT subscription                     |
-| history_ids   | One2many  | Related signal history records               |
-| topic         | Char      | Topic (related to subscription)              |
-| payload       | Text      | Message payload                              |
-| retain        | Boolean   | Retain flag                                  |
-| qos           | Integer   | Quality of Service                           |
-| send_at       | Datetime  | Time sent                                    |
-| display_name  | Char      | Computed display name                        |
-
-**Key Method:**  
-- `action_send_mqtt`: Sends a message to the broker/topic and records the event in history.
-
----
-
-### MQTT Signal History (`mqtt.signal.history`)
-| Field       | Type      | Description                                  |
-|-------------|-----------|----------------------------------------------|
-| signal_id   | Many2one  | Linked MQTT signal                           |
-| payload     | Text      | Message payload                              |
-| topic       | Char      | Topic                                        |
-| qos         | Integer   | Quality of Service                           |
-| retain      | Boolean   | Retain flag                                  |
-| direction   | Selection | Direction (send/receive)                     |
-| timestamp   | Datetime  | Time of message                              |
-| display_name| Char      | Computed display name                        |
-
----
 
 ## Example Usage
 
@@ -162,13 +87,13 @@ broker.action_check_connection()
 
 ```python
 subscription = env['mqtt.subscription'].browse(subscription_id)
-subscription.subscribe_mqtt()
+subscription.action_subscribe()
 ```
 
 ### 3. Send an MQTT Signal
 
 ```python
-signal = env['mqtt.signal'].create({
+signal = env['mqtt.publish.signal'].create({
     'broker_id': broker_id,
     'subscription_id': subscription_id,
     'payload': 'Hello MQTT!',
@@ -213,7 +138,7 @@ signal.action_send_mqtt()
 
 - Use the connection status and message history fields for troubleshooting.
 - Leverage Odoo’s logging and activity tracking for performance monitoring.
-- Review the `mqtt.signal.history` for a log of all MQTT messages sent/received.
+- Review the `mqtt.publish.signal.history` for a log of all MQTT messages sent/received.
 
 
 ## References

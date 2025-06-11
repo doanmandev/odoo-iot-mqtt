@@ -5,6 +5,10 @@ import paho.mqtt.client as mqtt
 import random
 import string
 import socket
+import logging
+
+_logger = logging.getLogger(__name__)
+
 
 
 class MQTTBroker(models.Model):
@@ -27,10 +31,15 @@ class MQTTBroker(models.Model):
     note = fields.Text(string='Note')
     connection_message = fields.Char(string='Connection Message', readonly=True)
     connection_status = fields.Selection([
-        ('unknown', 'Unknown'),
+        ('draft', 'Draft'),
         ('success', 'Success'),
         ('fail', 'Fail'),
-    ], string='Connection Status', default='unknown', readonly=True, tracking=True)
+    ], string='Connection Status', default='draft', readonly=True, tracking=True)
+    subscription_id = fields.Many2one('mqtt.subscription', string='Subscription')
+    broker_count = fields.Integer(
+        string="Broker Count",
+        compute="_compute_broker_count",
+    )
 
     _sql_constraints = [
         ('name_uniq', 'unique(name)', 'Configuration brokers name must be unique!')
@@ -40,13 +49,17 @@ class MQTTBroker(models.Model):
     def _generate_client_id(self):
         return 'client_' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
 
-    def action_check_connection(self):
+    def action_connection(self):
         for rec in self:
             try:
                 # Use short timeout for connecting
                 old_timeout = socket.getdefaulttimeout()
                 socket.setdefaulttimeout(rec.connect_timeout)
-                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+                client = mqtt.Client(
+                        client_id=self.client_id,
+                        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                        protocol=mqtt.MQTTv5
+                    )
                 if rec.username:
                     client.username_pw_set(rec.username, rec.password or None)
                 client.connect(rec.host, int(rec.port), rec.keepalive)
@@ -67,10 +80,26 @@ class MQTTBroker(models.Model):
                 socket.setdefaulttimeout(old_timeout)
                 raise UserError(f'Failed to connect: {e}')
 
+    def action_disconnect(self):
+        """Disconnect from the broker if connected."""
+        self.ensure_one()
+        client = mqtt.Client(
+                client_id=self.client_id,
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                protocol=mqtt.MQTTv5
+            )
+
+        if self.connection_status == 'success' and client:
+            try:
+                client.disconnect()
+                self.write({'connection_status': 'draft'})
+            except Exception as e:
+                _logger.error(f"Error disconnect broker {self.name}: {e}")
+
     def action_reconnect(self):
         """Reconnect to the broker if disconnected."""
         for rec in self:
-            return rec.action_check_connection()
+            return rec.action_connection()
         return True
 
     @api.model
@@ -78,6 +107,23 @@ class MQTTBroker(models.Model):
         brokers = self.search([('connection_status', '=', 'fail')])
         for broker in brokers:
             try:
-                broker.action_check_connection()
+                broker.action_connection()
             except Exception as e:
                 pass
+
+    def _compute_broker_count(self):
+        for rec in self:
+            subscriptions = self.env['mqtt.subscription'].search([
+                ('broker_id', '=', rec.id)
+            ])
+            rec.broker_count = len(subscriptions)
+
+    def action_check_subscription(self):
+            self.ensure_one()
+            action = self.env.ref('mqtt_integration.action_mqtt_subscription').read()[0]
+            action['domain'] = [
+                ('broker_id', '=', self.id),
+                ('subscription_status', '=', 'subscribed'),
+            ]
+            action['context'] = {'default_broker_id': self.id, 'default_subscription_status': 'subscribed'}
+            return action

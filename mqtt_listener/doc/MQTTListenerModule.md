@@ -1,188 +1,69 @@
 # MQTT Listener Module Documentation
+## Overview
+**mqtt_listener** is an Odoo module that integrates MQTT event listening and handling into your Odoo system. This module provides a service (`mqtt.service`) that connects to an MQTT broker, processes incoming messages, and automatically manages the lifecycle of the MQTT service (start/stop) when the module is installed or uninstalled on any active Odoo database.
+## Features
+- Seamless MQTT client integration into Odoo.
+- Automatically starts or stops the MQTT service when the module is installed or uninstalled on all active Odoo databases.
+- Robust support for multi-database environments.
+- Detailed logging of service actions and errors.
+- Lifecycle management via Odoo hooks.
 
-### Part 1: Document Summary
-### Part 2: Details
-
-# Part 1
-## Document Summary
-
-This document provides a comprehensive guide to the MQTT Listener module for Odoo.
-
-It includes:
-- Introduction and purpose of the MQTT Listener module
-- System architecture and components
-- Detailed API with code examples
-- Thread management and service lifecycle
-- Message handling and storage
-- Error handling and reconnection mechanisms
-- Integration with other Odoo modules
-- Security configuration
-- Deployment instructions
-- Best practices
-- Debugging and monitoring guidelines
-
-This documentation helps developers understand how to use and extend the MQTT Listener for real-time IoT applications and system integration in Odoo.
-
-# Part 2
-## Introduction
-
-The MQTT Listener module is an implementation that provides a background service for subscribing to and listening for MQTT messages in Odoo. It creates a dedicated thread that maintains a persistent connection to an MQTT broker, receives messages from configured topics, and stores them in the Odoo database.
-
-## Design Purpose
-
-- **Background Processing:** Runs in a separate daemon thread to avoid blocking Odoo's main process.
-- **Automatic Reconnection:** Implements exponential backoff for reconnecting to the broker in case of connection loss.
-- **Message Persistence:** Stores all received messages in the database for auditing and processing.
-- **Service Management:** Provides a clean API for starting, stopping, and monitoring the MQTT service.
-
-## System Architecture
-
-### Main Components
-
-#### 1. MQTT Service (`mqtt.service`)
-- Manages the lifecycle of the MQTT listener service
-- Provides API for starting, stopping, and checking service status
-- Stores service information and thread identifiers
-
-#### 2. MQTTListener Thread
-- Implements a daemon thread that connects to the MQTT broker
-- Handles message receipt via callback methods
-- Manages automatic reconnection with exponential backoff
-- Processes and stores incoming messages
-
-#### 3. Message History Storage
-- Uses `mqtt.signal.history` to store message history
-- Records topic, payload, QoS, direction, and timestamps
-
-## Data Flow
-
-1. **Service Initialization:**  
-   The `mqtt.service` model starts an MQTTListener thread to handle MQTT communications.
-
-2. **Connection Establishment:**  
-   The thread connects to the configured MQTT broker and subscribes to topics.
-
-3. **Message Handling:**  
-   Incoming messages trigger the `on_message` callback, which processes and stores them.
-
-4. **Reconnection:**  
-   If the connection is lost, the thread automatically attempts to reconnect with exponential backoff.
-
-## Models and Fields
-
-### MQTT Service (`mqtt.service`)
-| Field            | Type      | Description                                  |
-|------------------|-----------|----------------------------------------------|
-| name             | Char      | Service name (default: 'MQTT Listener Service') |
-| last_start       | Datetime  | Last service start time                      |
-| status           | Selection | Service status (start/stop/error)            |
-| thread_identifier| Char      | Thread identifier for the running thread     |
-| host_info        | Char      | Host system information (computed)           |
-| connection_status| Selection | Connection status (connected/connecting/disconnected/unknown) |
-
-**Key Methods:**
-- `start_mqtt_service()`: Starts the MQTT listener thread
-- `stop_mqtt_service()`: Safely stops the listener thread
-- `check_mqtt_status()`: Checks current service and connection status
-- `restart_mqtt_service()`: Restarts the service
-
-## Example Usage
-
-### 1. Start the MQTT Listener Service
-
-```python
-env['mqtt.service'].start_mqtt_service()
+## Installation
+1. Download this module and extract it into your Odoo directory. `addons`
+2. Ensure any required Python dependencies (such as `paho-mqtt`, if used) are installed in your Odoo environment.
+3. Install the module from the Odoo Apps menu or via the command line:
+``` shell
+   odoo -u mqtt_listener
 ```
-
-### 2. Check Service Status
-
-```python
-status = env['mqtt.service'].check_mqtt_status()
-# Returns: {'status': 'connected', 'message': 'MQTT Service is connected and running'}
+## Usage
+- **Automatic service management:**
+The MQTT service will automatically start on all databases after module installation and stop upon uninstallation.
+- **Manual control:**
+You can manually start or stop the MQTT service by calling:
+``` python
+  env['mqtt.service'].start_mqtt_service()
+  env['mqtt.service'].stop_mqtt_service()
 ```
+- **Message handling:**
+Custom logic for processing MQTT messages should be defined in the `mqtt.service` model implementation.
 
-### 3. Stop the Service
+## Hooks
+- `_post_init_hook(env)`: Starts the MQTT service right after the module is installed on a database.
+- `_auto_start_mqtt()`: Ensures the MQTT service starts on each active database after the module is installed.
+- `_uninstall_hook(env)`: Stops the MQTT service on all databases when the module is uninstalled.
 
-```python
-env['mqtt.service'].stop_mqtt_service()
+## Module Structure
+``` 
+mqtt_listener/
+├── __init__.py
+├── __manifest__.py
+├── models/
+│   └── mqtt_service.py
+├── controllers/
+├── tools/
+...
 ```
+- The main service model is defined in `models/mqtt_service.py`.
 
-## Thread Management
+## Logging & Debugging
+- All service lifecycle actions and errors are logged using Odoo’s logger under the name `odoo.addons.mqtt_listener`.
+- If you encounter logs like `'mqtt.service' not present in environment for database ...`, it means the service/model is not available in that database (e.g., the module may not be installed).
 
-The module manages MQTT threads using a global dictionary `MQTT_THREADS` which stores references to all active threads. This enables:
+## Requirements
+- Compatible Odoo version (see module manifest for details).
+- Python MQTT client (such as `paho-mqtt`) installed, if required by your implementation.
+- An MQTT broker accessible by your Odoo server (local network or Internet).
 
-1. **Thread Tracking:**
-   ```python
-   # Inside mqtt_service.py
-   MQTT_THREADS[thread_id] = listener_thread
-   ```
+## License
+See `__manifest__.py` for details.
 
-2. **Safe Thread Stopping:**
-   ```python
-   # When stopping a thread
-   thread.stop()
-   thread.join(timeout=5)
-   del MQTT_THREADS[thread_id]
-   ```
-
-## Message Handling
-
-When a message is received by the listener, it follows this process:
-
-```python
-def on_message(self, client, userdata, msg, properties=None):
-    # Update activity timestamp
-    self._last_activity = time.time()
-    
-    # Log message receipt
-    _logger.info(f"Received message on {msg.topic}: {msg.payload.decode()}")
-    
-    try:
-        # Create a new cursor to interact with database
-        with self.registry.cursor() as cr:
-            env = Environment(cr, SUPERUSER_ID, {})
-            
-            # Create history record
-            env['mqtt.signal.history'].create({
-                'topic': msg.topic,
-                'message_id': False,
-                'payload': msg.payload.decode(errors='ignore'),
-                'qos': msg.qos,
-                'direction': 'receive',
-                'retain': msg.retain,
-            })
-            
-            cr.commit()
-    except Exception as e:
-        _logger.error(f"Error processing MQTT message: {e}", exc_info=True)
-```
-
-## Error Handling and Reconnection
-
-The listener implements an advanced reconnection mechanism with exponential backoff:
-
-- Initial reconnect delay: 5 seconds
-- Maximum reconnect delay: 300 seconds (5 minutes)
-- Exponential backoff: Delay increases by a factor of 1.5 after each failed attempt
-
-```python
-# Reconnection logic in MQTTListener.run()
-if not self._connected:
-    try:
-        # Connection attempt
-        self.client.connect_async(self.broker, int(self.port), keepalive)
-        # If connection fails
-        self._current_delay = min(self._current_delay * 1.5, self._max_reconnect_delay)
-    except Exception:
-        # Increase delay for next attempt
-        self._current_delay = min(self._current_delay * 1.5, self._max_reconnect_delay)
-```
 
 ## Integration with Other Odoo Modules
 
 The MQTT Listener is designed to integrate with other modules by:
 
-- Storing messages in `mqtt.signal.history` which can be processed by other modules
+- Storing messages in `mqtt.publish.signal.history` which can be processed by other modules
+- Saving MQTT v5 user properties in `mqtt.user.property` for auditing
 - Using the Odoo registry and environment system for thread-safe database operations
 - Implementing a daemon thread that respects Odoo's lifecycle
 

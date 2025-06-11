@@ -23,17 +23,37 @@
         <field name="arch" type="xml">
             <form string="Brokers">
                 <header>
-                    <field name="connection_status" widget="statusbar" statusbar_visible="unknown,success,fail"/>
-                    <button name="action_check_connection"
+                    <field name="connection_status" widget="statusbar" statusbar_visible="draft,success,fail"/>
+                    <button name="action_reconnect"
+                            type="object" string="Reconnect"
+                            invisible="connection_status != 'fail'"
+                            class="btn-secondary"/>
+                    <button name="action_connection"
                             type="object" string="Connect"
                             invisible="connection_status == 'success'"
                             class="btn-primary"/>
-                    <button name="action_reconnect"
-                            type="object" string="Reconnect"
-                            invisible="connection_status not in ['fail', False]"
+                    <button name="action_disconnect"
+                            type="object" string="Disconnect"
+                            invisible="connection_status not in ['draft', 'success']"
                             class="btn-secondary"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_check_subscription" type="object"
+                            class="oe_stat_button"
+                                icon="fa-file-text-o"
+                                context="{'broker_id': id}">
+                            <div class="o_stat_info text-center d-flex flex-column align-items-center justify-content-center">
+                                <field name="broker_count" class="o_stat_value"/>
+                                <span class="o_stat_text" invisible="broker_count &lt; 2">
+                                    Subscriptions
+                                </span>
+                                <span class="o_stat_text" invisible="broker_count &gt; 1">
+                                    Subscription
+                                </span>
+                            </div>
+                        </button>
+                    </div>
                     <group>
                         <group>
                             <field name="name"/>

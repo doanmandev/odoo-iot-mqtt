@@ -45,8 +45,9 @@
     </record>
 
     <menuitem id="menu_mqtt_service" 
-              name="Service"
+              name="Services"
               parent="mqtt_integration.menu_mqtt_configuration"
               action="action_mqtt_service"
-              sequence="40"/>
+              sequence="3"/>
+
 </odoo>

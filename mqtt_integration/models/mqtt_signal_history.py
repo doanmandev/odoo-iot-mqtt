@@ -2,13 +2,13 @@
 from odoo import models, fields, api
 
 
-class MQTTSignalHistory(models.Model):
-    _name = 'mqtt.signal.history'
-    _description = 'MQTT Signal History'
+class MQTTPublishSignalHistory(models.Model):
+    _name = 'mqtt.publish.signal.history'
+    _description = 'MQTT Publish Signal History'
     _rec_name = 'display_name'
     _order = "timestamp desc"
 
-    signal_id = fields.Many2one('mqtt.signal', string='Signal')
+    signal_id = fields.Many2one('mqtt.publish.signal', string='Signal')
     payload = fields.Text(string='Payload', required=True)
     topic = fields.Char(string='Topic')
     qos = fields.Integer(string='QoS')
@@ -17,6 +17,7 @@ class MQTTSignalHistory(models.Model):
     timestamp = fields.Datetime(string='Timestamp', default=fields.Datetime.now)
     display_name = fields.Char(string="Display Name", compute="_compute_display_name", store=True)
     user_id = fields.Many2one('res.users', string='User', required=True)
+    user_property_ids = fields.One2many('mqtt.user.property', 'history_id', string='User Properties')
 
     @api.depends('signal_id.subscription_id', 'timestamp')
     def _compute_display_name(self):

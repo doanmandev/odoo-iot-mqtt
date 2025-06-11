@@ -31,6 +31,10 @@ class MQTTSubscription(models.Model):
     ], string='Subscription Status', default='fail', readonly=True)
     user_id = fields.Many2one('res.users', string='User',
                               default=lambda self: self.env.user, required=True)
+    publish_signal_count = fields.Integer(
+        string="Publish Signal Count",
+        compute="_compute_publish_signal_count",
+    )
 
     @api.depends('broker_id.name', 'topic')
     def _compute_display_name(self):
@@ -38,7 +42,7 @@ class MQTTSubscription(models.Model):
             broker_name = rec.broker_id.name or "Unknown Broker"
             rec.display_name = f"{broker_name} - {rec.topic}"
 
-    def subscribe_mqtt(self):
+    def action_subscribe(self):
         for rec in self:
             broker = rec.broker_id
             if not broker:
@@ -56,7 +60,11 @@ class MQTTSubscription(models.Model):
                 uid = self.env.uid
                 context = self.env.context
 
-                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+                client = mqtt.Client(
+                    client_id=broker.client_id,
+                    callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                    protocol=mqtt.MQTTv5
+                )
                 
                 # Set userdata with necessary information
                 userdata = {
@@ -112,3 +120,19 @@ class MQTTSubscription(models.Model):
             except Exception as e:
                 rec.write({'subscription_status': 'fail'})
                 raise UserError(f"Error subscribing to topic: {e}")
+
+    def _compute_publish_signal_count(self):
+        for rec in self:
+            publish_signal = self.env['mqtt.publish.signal'].search([
+                ('subscription_id', '=', rec.id)
+            ])
+            rec.publish_signal_count = len(publish_signal)
+
+    def action_check_publish_signal(self):
+            self.ensure_one()
+            action = self.env.ref('mqtt_integration.view_mqtt_publish_signal_action').read()[0]
+            action['domain'] = [
+                ('subscription_id', '=', self.id),
+            ]
+            action['context'] = {'default_subscription_id': self.id}
+            return action

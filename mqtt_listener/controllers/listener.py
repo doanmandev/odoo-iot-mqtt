@@ -19,7 +19,11 @@ class MQTTListener(threading.Thread):
         
         # Initialize the client with unique client_id to avoid conflicts
         client_id = f"odoo_mqtt_listener_{threading.get_ident()}"
-        self.client = mqtt.Client(client_id=client_id, callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        self.client = mqtt.Client(
+            client_id=client_id,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+            protocol=mqtt.MQTTv5
+        )
         
         # Default configuration if no connection found in the database
         # Change default broker to a trusted public broker
@@ -29,7 +33,7 @@ class MQTTListener(threading.Thread):
         self.password = ""
         self.topics = [("mqtt/test", 0)]  # Default theme to test
         self.is_configured = False  # Configuration status
-        
+
         # Read configuration from the database if available
         self._load_connection_config(env)
         
@@ -60,8 +64,11 @@ class MQTTListener(threading.Thread):
                 
                     # Update client_id if available
                     if broker_conn.client_id:
-                        self.client = mqtt.Client(client_id=broker_conn.client_id, 
-                                                callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+                        self.client = mqtt.Client(
+                            client_id=broker_conn.client_id,
+                            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                            protocol=mqtt.MQTTv5
+                        )
                 
                     # Config username and password
                     if self.username:
@@ -96,15 +103,15 @@ class MQTTListener(threading.Thread):
         self._connected = False
         _logger.warning(f"MQTT Disconnected with result code {rc}")
 
-    def on_message(self, client, userdata, msg, properties=None):
+    def on_message(self, client, userdata, msg):
         self._last_activity = time.time()  # Update uptime when receiving messages
         _logger.info(f"Received message on {msg.topic}: {msg.payload.decode()}")
         try:
             with self.registry.cursor() as cr:
                 # env model in Odoo
                 env = Environment(cr, SUPERUSER_ID, {})
-                signal_env = env['mqtt.signal']
-                history_env = env['mqtt.signal.history']
+                signal_env = env['mqtt.publish.signal']
+                history_env = env['mqtt.publish.signal.history']
 
                 signal_id = signal_env.search([('topic', '=', msg.topic)], limit=1).id or False
 
@@ -118,7 +125,34 @@ class MQTTListener(threading.Thread):
                     'retain': msg.retain,
                 }
 
-                history_env.create(message_data)
+                history = history_env.create(message_data)
+                if hasattr(msg.properties, 'UserProperty'):
+                    user_props = msg.properties.UserProperty or {}
+                    prop_model = env['mqtt.user.property']
+
+                    # Properties MQTT
+                    content_type = getattr(msg.properties, 'ContentType', None)
+                    payload_format = getattr(msg.properties, 'PayloadFormatIndicator', None)
+                    expiry = getattr(msg.properties, 'MessageExpiryInterval', None)
+                    topic_alias = getattr(msg.properties, 'TopicAlias', None)
+                    response_topic = getattr(msg.properties, 'ResponseTopic', None)
+                    correlation_data = getattr(msg.properties, 'CorrelationData', None)
+                    subscription_id = getattr(msg.properties, 'SubscriptionIdentifier', None)
+
+                    for key, value in user_props:
+                        prop_model.create({
+                            'key': key,
+                            'value': value,
+                            'signal_id': signal_id,
+                            'history_id': history.id,
+                            'subscription_id': subscription_id,
+                            'content_type': content_type,
+                            'payload_format': payload_format,
+                            'expiry': expiry,
+                            'topic_alias': topic_alias,
+                            'response_topic': response_topic,
+                            'correlation_data': correlation_data,
+                        })
 
                 _logger.info(f"Saved MQTT messages to database: {msg.topic}")
                 cr.commit()
@@ -231,27 +265,3 @@ class MQTTListener(threading.Thread):
     def stop(self):
         _logger.info("Stopping MQTT Listener...")
         self._stop_event.set()
-
-    def test_connection(self):
-        """Test connection check function"""
-        # Check configuration validity
-        if not self.broker or int(self.port) <= 0:
-            _logger.error("Cannot test connection: Invalid broker settings")
-            return False
-            
-        try:
-            test_client = mqtt.Client(
-                client_id=f"odoo_test_connection_{threading.get_ident()}", 
-                callback_api_version=mqtt.CallbackAPIVersion.VERSION2
-            )
-            # Set connection timeout
-            test_client.connect_async(self.broker, int(self.port), 10)
-            test_client.loop_start()
-            # Wait a moment for connection
-            time.sleep(2)
-            test_client.disconnect()
-            test_client.loop_stop()
-            return True
-        except Exception as e:
-            _logger.error(f"Check connection failed: {e}")
-            return False

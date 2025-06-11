@@ -40,9 +40,9 @@ Requirements: paho-mqtt
         'security/ir.model.access.csv',
         'views/mqtt_broker_views.xml',
         'views/mqtt_subscription_views.xml',
-        'views/mqtt_signal_views.xml',
-        'views/mqtt_signal_history_views.xml',
-        'views/mqtt_signal_views.xml',
+        'views/mqtt_publish_signal_views.xml',
+        'views/mqtt_publish_signal_history_views.xml',
+        'views/mqtt_user_property_views.xml',
         'data/cron.xml',
     ],
     'demo': [],
@@ -50,5 +50,5 @@ Requirements: paho-mqtt
     'application': True,
     'assets': {
     },
-    'license': 'LGPL-3',
+    'license': 'GPL-3',
 }

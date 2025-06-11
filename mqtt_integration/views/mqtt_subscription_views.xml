@@ -4,7 +4,7 @@
         <field name="name">mqtt.subscription.tree</field>
         <field name="model">mqtt.subscription</field>
         <field name="arch" type="xml">
-            <tree string="Subscriptions" delete="false">
+            <tree string="Subscriptions">
                 <field name="display_name"/>
                 <field name="broker_id"/>
                 <field name="topic"/>
@@ -19,24 +19,46 @@
         <field name="name">mqtt.subscription.form</field>
         <field name="model">mqtt.subscription</field>
         <field name="arch" type="xml">
-            <form string="Subscription" delete="false">
+            <form string="Subscription">
                 <header>
                     <field name="subscription_status" widget="statusbar"
                            statusbar_visible="subscribed,subscribing,fail"/>
-                    <button name="subscribe_mqtt" type="object"
+                    <button name="action_subscribe" type="object"
                             string="Submit"
                             invisible="subscription_status not in ['fail', False]"
                             class="btn-primary"/>
-                    <button name="subscribe_mqtt" type="object"
-                            string="Subscribe"
-                            invisible="subscription_status != 'subscribing'"
-                            class="btn-primary"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_check_publish_signal" type="object"
+                            class="oe_stat_button"
+                                icon="fa-file-text-o"
+                                context="{'broker_id': id}">
+                            <div class="o_stat_info text-center d-flex flex-column align-items-center justify-content-center">
+                                <field name="publish_signal_count" class="o_stat_value"/>
+                                <span class="o_stat_text" invisible="publish_signal_count &lt; 2">
+                                    Publish multiple signals
+                                </span>
+                                <span class="o_stat_text" invisible="publish_signal_count &gt; 1">
+                                    Publish signal
+                                </span>
+                            </div>
+                        </button>
+                    </div>
                     <group>
                         <field name="display_name" readonly="1"/>
-                        <field name="broker_id"/>
-                        <field name="user_id"/>
+                        <field name="broker_id"
+                               options="{
+                               'no_open': True,
+                               'no_create': True,
+                               'no_quick_create': True,
+                               'no_create_edit': True}"/>
+                        <field name="user_id"
+                               options="{
+                               'no_open': True,
+                               'no_create': True,
+                               'no_quick_create': True,
+                               'no_create_edit': True}"/>
                         <field name="topic"/>
                         <field name="qos"/>
                         <field name="no_local_flag"/>
@@ -72,4 +94,5 @@
               parent="mqtt_integration.menu_mqtt_configuration"
               action="action_mqtt_subscription"
               sequence="2"/>
+
 </odoo>

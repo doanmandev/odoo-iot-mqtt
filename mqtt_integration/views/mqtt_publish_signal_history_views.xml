@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Views -->
+    <record id="view_mqtt_outgoing_signal_history_tree" model="ir.ui.view">
+        <field name="name">mqtt.publish.signal.history.tree</field>
+        <field name="model">mqtt.publish.signal.history</field>
+        <field name="arch" type="xml">
+            <tree string="Outgoing History" create="false" delete="false">
+                <field name="timestamp"/>
+                <field name="signal_id" readonly="1"/>
+                <field name="payload"/>
+                <field name="topic" optional="hide"/>
+                <field name="direction" optional="hide"/>
+                <field name="qos" optional="hide"/>
+                <field name="retain" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mqtt_incoming_signal_history_tree" model="ir.ui.view">
+        <field name="name">mqtt.incoming.signal.history.tree</field>
+        <field name="model">mqtt.publish.signal.history</field>
+        <field name="arch" type="xml">
+            <tree string="Incoming History" create="false" delete="false">
+                <field name="timestamp"/>
+                <field name="signal_id" readonly="1"/>
+                <field name="payload"/>
+                <field name="topic" optional="hide"/>
+                <field name="direction" optional="hide"/>
+                <field name="qos" optional="hide"/>
+                <field name="retain" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_mqtt_publish_signal_history_form" model="ir.ui.view">
+        <field name="name">mqtt.publish.signal.history.form</field>
+        <field name="model">mqtt.publish.signal.history</field>
+        <field name="arch" type="xml">
+            <form string="Signal History">
+                <sheet>
+                    <group>
+                        <field name="timestamp"  readonly="1"/>
+                        <field name="signal_id" readonly="1"/>
+                        <field name="payload" readonly="1"/>
+                        <field name="topic" readonly="1"/>
+                        <field name="direction" readonly="1"/>
+                        <field name="qos" readonly="1" optional="hide"/>
+                        <field name="retain" readonly="1" optional="hide"/>
+                    </group>
+                    <notebook invisible="direction == 'outgoing'">
+                        <page string="User Properties">
+                            <field name="user_property_ids" readonly="1">
+                                <tree create="false" delete="false">
+                                    <field name="key"/>
+                                    <field name="value"/>
+                                    <field name="content_type" optional="hide"/>
+                                    <field name="payload_format" optional="hide"/>
+                                    <field name="expiry" optional="hide"/>
+                                    <field name="topic_alias" optional="hide"/>
+                                    <field name="response_topic" optional="hide"/>
+                                    <field name="correlation_data" optional="hide"/>
+                                    <field name="subscription_id" optional="hide"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_mqtt_outgoing_signal" model="ir.actions.act_window">
+        <field name="name">Outgoing History</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">mqtt.publish.signal.history</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="view_mqtt_outgoing_signal_history_tree"/>
+        <field name="domain">[('direction', '=', 'outgoing')]</field>
+    </record>
+
+    <record id="action_mqtt_incoming_signal" model="ir.actions.act_window">
+        <field name="name">Incoming History</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">mqtt.publish.signal.history</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="view_mqtt_incoming_signal_history_tree"/>
+        <field name="domain">[('direction', '=', 'incoming')]</field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem id="menu_mqtt_signal_history"
+              name="History"
+              parent="mqtt_integration.menu_mqtt_configuration"
+              sequence="100"/>
+
+    <menuitem id="menu_mqtt_outgoing_signal"
+              name="Outgoing History"
+              parent="mqtt_integration.menu_mqtt_signal_history"
+              action="action_mqtt_outgoing_signal"
+              sequence="1"/>
+
+    <menuitem id="menu_mqtt_incoming_signal"
+              name="Incoming History"
+              parent="mqtt_integration.menu_mqtt_signal_history"
+              action="action_mqtt_incoming_signal"
+              sequence="2"/>
+
+</odoo>
