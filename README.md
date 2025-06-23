@@ -2,7 +2,7 @@
 
 Seamless integration between **Odoo ERP** and **IoT devices** using the **MQTT protocol**.
 
-![Odoo + MQTT](https://plctab.com/wp-content/uploads/2021/08/mqtt.jpg) <!-- Huynh có thể thay bằng ảnh minh họa repo -->
+![Odoo + MQTT](https://plctab.com/wp-content/uploads/2021/08/mqtt.jpg)
 
 ---
 
@@ -25,10 +25,9 @@ This module enables **real-time, bidirectional communication** between Odoo and 
 
 This solution consists of two tightly integrated Odoo modules:
 
-| Module             | Responsibilities                                          |
-| ------------------ | --------------------------------------------------------- |
-| `mqtt_integration` | Broker setup, signal sending, message history             |
-| `mqtt_listener`    | Background service, realtime listener, reconnection logic |
+**Module:** `mqtt_integration`
+
+**Responsibilities:** Broker setup, topic sending, message history, Background service, realtime listener, reconnection logic.
 
 ---
 
@@ -36,7 +35,7 @@ This solution consists of two tightly integrated Odoo modules:
 
 ### Requirements
 
-* Odoo **16.0**
+* Odoo **16.0+**
 * Python **3.8+**
 * MQTT client library: `paho-mqtt`
 
@@ -46,8 +45,8 @@ This solution consists of two tightly integrated Odoo modules:
 pip install paho-mqtt
 ```
 
-1. Copy `mqtt_integration/` and `mqtt_listener/` to your Odoo `addons` directory.
-2. Restart Odoo and update app list.
+1. Copy `mqtt_integration/` to your Odoo `custom addons` directory.
+2. Restart Odoo and update the app list.
 3. Install **"MQTT Integration"** from the Apps menu.
 
 ---
@@ -56,52 +55,30 @@ pip install paho-mqtt
 
 ### 1. Configure MQTT Broker
 
-* Go to **MQTT > Configuration > Broker**
-* Fill in details (host, port, user, pass,...)
-* Use **Check Connection** to validate
+* Go to **MQTT Machine > MQTT Configuration > Broker**
+* Fill in details (url_scheme, host, port, user, pass,...)
+* Use **Connect** and **Start Listener** **Button**
 
-### 2. Create Subscriptions
+### 2. Create Topics
 
-* Navigate to **MQTT > Configuration > Subscriptions**
-* Define topics and QoS settings
+* Navigate to **MQTT Machine> MQTT Configuration > Topics**
+* Define **Topic**
+* Choose **Broker**
+* Click **Confirm** to activate
+
+### 3. Create Subscriptions
+
+* Navigate to **MQTT Machine> MQTT Configuration > Subscriptions**
+* Define **Subscription** and **valid payload**
+* Choose **Broker**, **Topic** and **Allow User Property** (_if necessary_)
 * Click **Subscribe** to activate
 
-### 3. Start Listener Service
+## 🖠️ Usage WorkFlow
 
-* Navigate to **MQTT > Configuration > Service**
-* Click **Start Service** to activate background listener
-
----
-
-## 🖠️ Usage Examples
-
-### 🔹 Send MQTT Signal
-
-```python
-self.env['mqtt.publish.signal'].create({
-    'broker_id': self.broker_id.id,
-    'subscription_id': self.subscription_id.id,
-    'payload': '{"command": "turn_on"}',
-    'qos': 1,
-    'user_property_ids': [(0, 0, {'key': 'source', 'value': 'odoo'})],
-}).action_send_mqtt()
-```
-
-### 🔹 Check Service Status
-
-```python
-status = self.env['mqtt.service'].check_mqtt_status()
-# Output: {'status': 'connected', 'message': 'MQTT Service is connected and running'}
-```
-
+### 🔹 Define Broker, Topic, Subscription
+### 🔹 Check/Submit to Broker, Topic, Subscription
+### 🔹 Publish Message
 ### 🔹 Query Message History
-
-```python
-messages = self.env['mqtt.publish.signal.history'].search([
-    ('direction', '=', 'receive'),
-    ('topic', 'like', 'sensors/%')
-], limit=10, order='timestamp desc')
-```
 
 ---
 
