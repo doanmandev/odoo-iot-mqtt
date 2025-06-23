@@ -1,148 +1,191 @@
-# MQTT Integration Documentation
+# MQTT Integration for Odoo
+---
 
-### Part 1: Document Summary
-### Part 2: Details
+## 1. Overview
 
-# Part 1
-## Document Summary
+**MQTT Integration & Listener** is a robust system to integrate MQTT (Message Queuing Telemetry Transport) into Odoo.  
+This module enables Odoo to **communicate in real-time with IoT devices and external services** via MQTT brokers:
+- Manage brokers, topics, subscriptions, messages, user properties
+- Listen and handle messages automatically using background listener threads/services
+- Log all message histories and properties according to the MQTT v5 standard
+- Auto start/stop listeners according to Odoo's lifecycle, fully compatible with multi-database environments
 
-This document provides a comprehensive guide to the MQTT Integration interface in Odoo.
+---
 
-It includes:
-- Introduction to the purpose and design of the MQTT Integration module
-- System architecture and data flow
-- Detailed API with code examples
-- Guide to managing MQTT threads
-- How to store and process MQTT messages
-- Error handling and reconnect mechanisms
-- Integration with other Odoo modules
-- Security configuration
-- Deployment instructions
-- Best practices
-- Debugging and performance monitoring guidelines
+## 2. System Architecture & Data Flow
 
-This document helps developers understand how to use and extend the MQTT Integration for IoT applications and system integration in Odoo.
+### 2.1. Core Components
 
-# Part 2
-## Introduction
+| Component            | Model/Class            | Key Functionality                                  |
+|----------------------|-----------------------|----------------------------------------------------|
+| **Broker**           | `mqtt.broker`         | Broker management, connect/disconnect, listener management, status tracking |
+| **Topic**            | `mqtt.topic`          | Topic management per broker                        |
+| **Subscription**     | `mqtt.subscription`   | Register/unregister topic subscriptions, manage status |
+| **Message History**  | `mqtt.message.history`| Log incoming/outgoing messages, link to properties |
+| **User Property**    | `mqtt.user.property`  | Store MQTT v5 user properties per message          |
+| **Listener Service** | (thread/service)      | Background thread listens to broker, processes messages, logs history |
+| **Hook & Cron**      | `__init__.py` + cron.xml | Auto start/stop listeners on install, uninstall, or Odoo restart |
 
-MQTT Integration is an abstraction layer providing a unified interface for MQTT communication within the Odoo system.  
-This module acts as a bridge between Odoo and IoT devices or external services, enabling real-time data exchange via the MQTT protocol.
+### 2.2. Operation Flow
 
-## Design Purpose
+1. **Broker Setup:**  
+   - Create and configure one or more MQTT brokers (`mqtt.broker`) with host, port, client_id, etc.
+2. **Topic Management:**  
+   - Create topics for each broker, only `status='confirm'` topics can be subscribed.
+3. **Subscription Management:**  
+   - Register/unregister subscriptions for each topic.  
+   - Each subscription links a broker and topic, tracks status, payload, payload format (json, plaintext, hex, base64), QoS, retain, etc.
+4. **Listener Service:**  
+   - When a broker is connected and the listener started, Odoo spawns a background thread that listens for all subscribed topics.  
+   - Received messages are processed, history is logged, properties are extracted, and notifications are sent via Odoo's bus.
+5. **Message Processing:**  
+   - Messages can be sent from Odoo to MQTT (`action_publish_message`),  
+   - Received messages are automatically logged in `mqtt.message.history`.
+6. **User Property & Metadata:**  
+   - Automatically records all MQTT v5 properties of each message in `mqtt.user.property` for auditing and traceability.
+7. **Lifecycle & Auto Recovery:**  
+   - Uses Odoo hooks (`_post_init_hook`, `_uninstall_hook`, `_auto_start_mqtt`) and a periodic cron job to ensure all listeners are always running in line with broker status, even after Odoo restarts or module (un)installs.
 
-- **Object-Oriented Abstraction:** Encapsulates the complexity of MQTT communication.
-- **Extensibility:** Easily add new MQTT brokers and message formats.
-- **System Integration:** Provides a unified framework for other modules to use MQTT.
-- **State Management:** Monitors and manages MQTT connections throughout the application lifecycle.
+---
 
-## System Architecture
+## 3. Component Details
 
-### Main Components
+### 3.1. MQTT Broker (`mqtt.broker`)
+- **Key fields:** name, client_id, url_scheme, host, port, username/password, keepalive, status, listener_status
+- **Key actions:**  
+  - `action_connection`, `action_disconnect`, `action_reconnect`  
+  - `action_start_listener`, `action_stop_listener`  
+  - `action_renew_broker` (reset broker to draft)
+- Unique `client_id` is auto-generated per broker.
+- **Auto recovery:** When Odoo starts (or via cron), all brokers with status "connect" and listener_status "run"/"stop" are auto-restarted as listener threads.
+- **Thread safety:** RAM-level thread tracking prevents duplicate listeners.
+- All actions are thoroughly logged for debugging.
 
-#### 1. MQTT Broker (`mqtt.broker`)
-- Stores MQTT broker configurations (host, port, credentials, etc.)
-- Provides connection testing (`action_check_connection`)
-- Tracks connection status and messages
+### 3.2. Topic (`mqtt.topic`)
+- Linked to a broker, status (`draft`/`confirm`), creator, QoS, all MQTT v5 flags.
+- Only topics with `status='confirm'` are eligible for subscription.
 
-#### 2. MQTT Subscription (`mqtt.subscription`)
-- Manages subscriptions to MQTT topics
-- Handles subscription status and allows subscribing via `action_subscribe`
-- Tracks broker, topic, QoS, and subscription state
+### 3.3. Subscription (`mqtt.subscription`)
+- Links broker, topic, status (`subscribe`/`unsubscribe`/`fail`), direction (`incoming`/`outgoing`), format_payload, default payload, QoS, retain, etc.
+- **Key actions:**  
+  - `action_subscribe`, `action_unsubscribe`, `action_renew_subscription`, `action_publish_message`  
+  - Payload validation and formatting tools for debugging.
+- **Validation:** Payload is checked to match the specified format.
+- On subscribe/unsubscribe, the listener is auto-restarted so threads instantly pick up new topics.
 
-#### 3. MQTT Signal (`mqtt.publish.signal`)
-- Represents messages to be sent to MQTT topics
-- Linked to a broker and a subscription
-- Allows sending messages via `action_send_mqtt`
-- Stores payload, QoS, retain flag, and send time
+### 3.4. Message History (`mqtt.message.history`)
+- Logs all messages (incoming/outgoing), including broker, subscription, topic, format, payload, QoS, retain, timestamp.
+- **Auto-generated display_name** (Broker - Topic - timestamp) for easy reference.
+- Complete audit/history tracking.
 
-#### 4. MQTT Signal History (`mqtt.publish.signal.history`)
-- Stores history of sent and received messages
-- Tracks signal, payload, topic, QoS, retain, direction (send/receive), and timestamp
+### 3.5. User Property (`mqtt.user.property`)
+- Records all MQTT v5 message properties: key, value, content_type, format_payload, expiry, response_topic, correlation_data, subscription_identifier, etc.
+- Linked to each topic/message/history.
+- Clear UI for querying properties.
 
-## Data Flow
+### 3.6. Listener Service
+- Background thread with `loop_start`, auto-reconnect, exponential backoff, and reconnect failure logging.
+- Stopping Odoo/module will stop all listeners, preventing resource leakage.
+- Listener can be (re)started manually or automatically (via cron/hook).
 
-1. **Broker Configuration:**  
-   Users define one or more MQTT brokers (`mqtt.broker`).
+---
 
-2. **Subscription Management:**  
-   Users create subscriptions (`mqtt.subscription`) to topics on a broker.
+## 4. Lifecycle Management & Hooks
 
-3. **Message Sending:**  
-   Users create and send signals (`mqtt.publish.signal`) to a topic. Each sent message is logged in history (`mqtt.signal.history`).
+- **Odoo Lifecycle:**
+  - On module install (`_post_init_hook`): auto-start listeners for all brokers currently connected.
+  - On uninstall (`_uninstall_hook`): auto-stop/cleanup listeners for all brokers.
+  - On Odoo restart:  
+    - `_auto_start_mqtt` hook (via manifest or called manually) + cron (every 10 min) to ensure listeners are never left "offline".
+  - `odoo_restart_handler.py` uses `atexit` to clean up listeners on abrupt Odoo shutdown.
 
-4. **Message Receiving:**  
-   Subscribed topics can receive messages, which are also logged in history.
+---
 
-## Example Usage
+## 5. Usage Flow (Practical API/UX)
 
-### 1. Check Broker Connection
-
+### A. Broker Setup & Connection
 ```python
-broker = env['mqtt.broker'].browse(broker_id)
-broker.action_check_connection()
-```
-
-### 2. Subscribe to a Topic
-
-```python
-subscription = env['mqtt.subscription'].browse(subscription_id)
-subscription.action_subscribe()
-```
-
-### 3. Send an MQTT Signal
-
-```python
-signal = env['mqtt.publish.signal'].create({
-    'broker_id': broker_id,
-    'subscription_id': subscription_id,
-    'payload': 'Hello MQTT!',
-    'qos': 0,
-    'retain': False,
+broker = env['mqtt.broker'].create({
+    'name': 'My Broker',
+    'host': 'broker.emqx.io',
+    'port': 1883,
+    # ...
 })
-signal.action_send_mqtt()
+broker.action_connection()
+broker.action_start_listener()
 ```
 
-## Error Handling and Reconnection
+### B. Topic Creation & Confirmation
+```python
+topic = env['mqtt.topic'].create({
+    'name': 'my/topic',
+    'broker_id': broker.id,
+})
+topic.action_confirm()
+```
 
-- All connection and subscription errors are handled with descriptive messages using Odoo's `UserError`.
-- Connection status and messages are tracked in the broker and subscription models.
-- Subscription and sending methods include try/catch blocks for robust error handling.
+### C. Register Subscription
+```python
+sub = env['mqtt.subscription'].create({
+    'broker_id': broker.id,
+    'topic_id': topic.id,
+    # ...
+})
+sub.action_subscribe()
 
-## Integration with Other Odoo Modules
+```
 
-- All models inherit from `mail.thread` and `mail.activity.mixin` for full integration with Odoo’s communication and activity tracking features.
-- The design allows easy extension for custom IoT or business logic.
+### D. Publish Message (Odoo → MQTT)
+```python
+sub.action_publish_message()
+```
 
-## Security Configuration
+### E. Receive Message (MQTT → Odoo)
+- Listener thread receives the message and logs it in mqtt.message.history, with all user properties in mqtt.user.property.
 
-- Credentials and connection information are securely stored in the `mqtt.broker` model.
-- TLS/SSL can be configured for secure communication (extend the broker model as needed).
+## 6. Auto Recovery & Monitoring
+- **Auto Start Listener**:
+On Odoo restart, all brokers with the status "connect" will automatically have listeners restarted via hook/cron.
+- **Cron** (default: every 10 minutes, configurable):
+```python
+model._cron_broker_listener_auto_start()
+```
+- **Extensive logging** for all actions and errors, facilitating debugging and profiling.
+- **Activity Tracking**:
+Track uptime, status, and detect inactivity for brokers/listeners.
 
-## Deployment Instructions
+## 7. Best Practices & Security
+- **Use unique client_id per broker** (module auto-generates).
+- **Only subscribe to topics in "confirmed" status.**
+- **Validate payload format before sending/receiving.**
+- **Monitor logs and status for early error detection.**
+- **Store credentials securely in DB; use HTTPS for Odoo and enable TLS/SSL for brokers whenever possible.**
+- **Restrict client user permissions on the broker to only the necessary publish/subscribe topics.**
 
-1. Install Python dependencies (e.g., `paho-mqtt`).
-2. Add the module to your Odoo `custom_addons` directory.
-3. Update your Odoo configuration and restart the server.
-4. Configure your MQTT brokers and subscriptions in the Odoo UI.
+## 8. Debugging & Performance
+- **View message history (incoming/outgoing) and detailed properties via UI.**
+- **Utilize Odoo logging to trace issues and performance.**
+- **If needing a quick restart, use the broker UI's Stop/Start Listener buttons.**
 
-## Best Practices
+## 9. Extension & Integration
+- **Inherit/extend models to add IoT/automation logic.**
+- **Integrate with Odoo automation, rules, workflow, etc. via standard API.**
+- **All actions use @api.model/@api.multi for controller/service compatibility.**
 
-- Use unique client IDs for each broker.
-- Set appropriate QoS and retain flags for your use case.
-- Regularly check connection status.
-- Secure your broker credentials and use TLS/SSL if possible.
-- Use Odoo's access control and logging for traceability.
+## 10. Deployment
+1. Install the Python package `paho-mqtt`.
+2. Deploy this module into Odoo, update the app list.
+3. Create brokers, topics, and subscriptions via the UI.
+4. Test subscribing/publishing with real brokers or MQTTX/EMQX tools.
+5. Monitor logs and history to verify the correct operation.
 
-## Debugging and Monitoring
+## 11. References
+- [Paho MQTT Python](https://www.eclipse.org/paho/index.php?page=clients/python/index.php)
+- [MQTT v5.0 Spec](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
+- [Odoo Documentation](https://www.odoo.com/documentation)
+- [Threading in Python](https://docs.python.org/3/library/threading.html)
+- [IoT Protocols Overview](https://www.a1.digital/knowledge-hub/iot-protocols-a-comprehensive-guide/)
 
-- Use the connection status and message history fields for troubleshooting.
-- Leverage Odoo’s logging and activity tracking for performance monitoring.
-- Review the `mqtt.publish.signal.history` for a log of all MQTT messages sent/received.
+_This documentation accurately reflects the flow, thread logic, data models, and resource management hooks of the current module code. For PDF export, visual diagrams, or more advanced use cases, please request further support!_
 
-
-## References
-1. [Paho MQTT Python](https://www.eclipse.org/paho/index.php?page=clients/python/index.php)
-2. [MQTT v5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
-3. [Odoo Documentation](https://www.odoo.com/documentation)
-4. [IoT Protocols](https://www.a1.digital/knowledge-hub/iot-protocols-a-comprehensive-guide/)
+---

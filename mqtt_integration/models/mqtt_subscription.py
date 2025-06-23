@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api, registry
-from odoo.api import Environment
-from odoo.exceptions import UserError
-
-import paho.mqtt.client as mqtt
+from odoo import models, fields, api
+from odoo.exceptions import UserError, ValidationError
+from ..utils import broker_client
+import json
+import base64
 import logging
 import threading
 
@@ -14,125 +14,437 @@ class MQTTSubscription(models.Model):
     _name = 'mqtt.subscription'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'MQTT Subscription'
-    _rec_name = 'display_name'
 
+    name = fields.Char(string="Name", compute="_compute_name", readonly=True)
+    status = fields.Selection([
+        ('new', 'New'),
+        ('subscribe', 'Subscribed'),
+        ('unsubscribe', 'Unsubscribed'),
+        ('fail', 'Failed'),
+    ], default='new', string='Status')
+    direction = fields.Selection([
+        ('outgoing', 'Outgoing'),
+        ('incoming', 'Incoming')
+    ], string='Direction', default='outgoing')
+    format_payload = fields.Selection([
+        ('plaintext', 'Plaintext'),
+        ('json', 'JSON'),
+        ('base64', 'Base64'),
+        ('hex', 'Hex')
+    ], default='plaintext', string='Format Payload',
+        help='Format Payload to Publish\n'
+             '• JSON: Must be valid JSON format\n'
+             '• Base64: Must be valid Base64 encoding\n'
+             '• Hex: Must be valid hexadecimal format\n'
+             '• Plaintext: Any text format')
     broker_id = fields.Many2one('mqtt.broker', string='Broker', required=True)
-    topic = fields.Char(string='Topic', required=True)
+    topic_id = fields.Many2one('mqtt.topic', string='Topic', domain="[('broker_id', '=', broker_id)]", required=True)
+    history_ids = fields.One2many('mqtt.message.history', 'subscription_id', string='Signal History')
+    user_property_ids = fields.One2many('mqtt.user.property', 'history_id', string='User Properties')
+    payload = fields.Text(string='Payload', required=True, help='Message payload. Format must match the selected Format Payload type.')
     qos = fields.Integer(string='QoS', default=0)
-    no_local_flag = fields.Boolean(string='No Local Flag', default=False)
-    retain_as_published_flag = fields.Boolean(string='Retain as Published Flag', default=False)
-    retain_handling = fields.Integer(string='Retain handling', default=0)
-    subscription_time = fields.Datetime(string="Subscription Time")
-    display_name = fields.Char(string="Display Name", compute="_compute_display_name", store=True)
-    subscription_status = fields.Selection([
-        ('subscribed', 'Subscribed'),
-        ('subscribing', 'Subscribing'),
-        ('fail', 'Fail'),
-    ], string='Subscription Status', default='fail', readonly=True)
-    user_id = fields.Many2one('res.users', string='User',
-                              default=lambda self: self.env.user, required=True)
-    publish_signal_count = fields.Integer(
-        string="Publish Signal Count",
-        compute="_compute_publish_signal_count",
+    retain = fields.Boolean(string='Retain', default=False,
+                            help="- Used to mark messages for retention on the broker.\n"
+                                 "- Want clients to subscribe later and also receive the latest status immediately.\n"
+                                 "- Should be used for signals (e.g. relays, sensors, etc) to get the latest value of the topic.\n"
+                                 "- Not for storing data history, logs, special events that are constantly.")
+    subscription_time = fields.Datetime(string='Subscription Time')
+    unsubscription_time = fields.Datetime(string='Unsubscription Time')
+    progressing_subscription = fields.Char(string='Progressing Subscription', readonly=True)
+    publish_at = fields.Datetime(string='Message Publish At')
+    topic_count = fields.Integer(string="Topic Count", compute="_compute_topic_count")
+    is_allow_user_property = fields.Boolean(
+        string='Allow User Property',
+        default=False,
+        help="Enable to allow user properties in MQTT messages"
+    )
+    outgoing_message_count = fields.Integer(
+        string="Outgoing Message Count",
+        compute="_compute_message_count",
+    )
+    incoming_message_count = fields.Integer(
+        string="Incoming Message Count",
+        compute="_compute_message_count",
     )
 
-    @api.depends('broker_id.name', 'topic')
-    def _compute_display_name(self):
-        for rec in self:
-            broker_name = rec.broker_id.name or "Unknown Broker"
-            rec.display_name = f"{broker_name} - {rec.topic}"
+    @api.constrains('format_payload', 'payload')
+    def _check_payload_format(self):
+        """Validate payload format based on format_payload selection"""
+        for record in self:
+            if not record.payload:
+                continue
 
-    def action_subscribe(self):
+            if record.format_payload == 'json':
+                try:
+                    # Kiểm tra JSON hợp lệ
+                    parsed_json = json.loads(record.payload)
+
+                    # Kiểm tra JSON không được rỗng hoàn toàn
+                    if parsed_json is None:
+                        raise ValidationError("JSON payload cannot be null")
+
+                except json.JSONDecodeError as e:
+                    raise ValidationError(
+                        f"Invalid JSON format in payload.\n"
+                        f"Error: {e.msg} at line {e.lineno}, column {e.colno}"
+                    )
+                except Exception as e:
+                    raise ValidationError(f"JSON validation error: {str(e)}")
+
+            elif record.format_payload == 'base64':
+                try:
+                    # Validate Base64 format
+                    base64.b64decode(record.payload, validate=True)
+                except Exception:
+                    raise ValidationError("Invalid Base64 format in payload")
+
+            elif record.format_payload == 'hex':
+                try:
+                    # Validate Hex format
+                    cleaned_hex = record.payload.replace(' ', '').replace('\n', '')
+                    bytes.fromhex(cleaned_hex)
+                except ValueError:
+                    raise ValidationError("Invalid Hex format in payload")
+
+    @api.depends('broker_id', 'topic_id')
+    def _compute_name(self):
+        for rec in self:
+            if rec.broker_id and rec.topic_id:
+                broker_name = rec.broker_id.name or "Unknown Broker"
+                topic_name = rec.topic_id.name or "Unknown Topic"
+                rec.name = f"{broker_name} - {topic_name}"
+            else:
+                rec.name = "Incomplete Configuration"
+
+    @api.depends('history_ids.direction')
+    def _compute_message_count(self):
+        for rec in self:
+            rec.outgoing_message_count = len([
+                res for res in rec.history_ids if res.direction == 'outgoing'
+            ])
+            rec.incoming_message_count = len([
+                res for res in rec.history_ids if res.direction == 'incoming'
+            ])
+
+    @api.depends('topic_id', 'broker_id')
+    def _compute_topic_count(self):
+        for rec in self:
+            rec.topic_count = self.env['mqtt.topic'].search_count([
+                ('id', '=', rec.topic_id.id),
+                ('broker_id', '=', rec.broker_id.id)
+            ])
+
+    @api.constrains('format_payload', 'payload')
+    def _check_json_payload(self):
+        """Validate a payload format when format_payload is 'json'"""
+        for record in self:
+            if record.format_payload == 'json' and record.payload:
+                try:
+                    json.loads(record.payload)
+                except (json.JSONDecodeError, ValueError) as e:
+                    raise ValidationError(
+                        f"Payload must be valid JSON format when Format Payload is 'JSON'. "
+                        f"Error: {str(e)}"
+                    )
+
+    def action_format_json_payload(self):
+        """Format JSON payload for better readability"""
+        self.ensure_one()
+        if self.format_payload == 'json' and self.payload:
+            try:
+                parsed = json.loads(self.payload)
+                formatted = json.dumps(parsed, indent=2, ensure_ascii=False)
+                self.payload = formatted
+            except json.JSONDecodeError:
+                _logger.error(f"Cannot format invalid JSON payload.")
+                raise UserError("Cannot format invalid JSON payload.")
+
+    def action_validate_payload(self):
+        """Manually validate a payload format"""
+        self.ensure_one()
+        try:
+            self._check_payload_format()
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Validation Success',
+                    'message': f'{self.format_payload.upper()} payload is valid.',
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        except ValidationError as e:
+            _logger.error(f"Validation failed: {e}")
+            raise UserError(f"Validation failed: {str(e)}")
+
+    def action_publish_message(self):
         for rec in self:
             broker = rec.broker_id
+            topic = rec.topic_id
+
+            # Validate required fields
             if not broker:
-                raise UserError("Broker not selected!")
+                raise UserError('Broker not found!')
+            if not topic and topic.status != 'confirm':
+                raise UserError('Topic confirmed not found!')
+            if broker.status != 'connect':
+                raise UserError("Broker not connected!")
+            if rec.status != 'subscribe':
+                raise UserError("Subscription not active!")
+
+            # Validate a payload format before publishing
+            try:
+                rec._check_payload_format()
+            except ValidationError as e:
+                _logger.error(f"PuPayload validation failed: {e}")
+                raise UserError(f"Payload validation failed: {str(e)}")
 
             try:
-                rec.write({'subscription_status': 'subscribing'})
+                client = broker_client(client_id=broker.client_id, protocol='MQTTv5')
+                if broker.username:
+                    client.username_pw_set(broker.username, broker.password or None)
+                client.connect(broker.host, int(broker.port), broker.keepalive)
 
-                # Create a new MQTT client instance
-                topic = rec.topic
-                qos = rec.qos
-                subscription_id = rec.id
-                env = self.env
-                dbname = self.env.cr.dbname
-                uid = self.env.uid
-                context = self.env.context
+                # Prepare payload based on format
+                formatted_payload = rec._prepare_payload_for_publish()
 
-                client = mqtt.Client(
-                    client_id=broker.client_id,
-                    callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-                    protocol=mqtt.MQTTv5
+                properties = None
+                client.publish(
+                    topic=rec.topic_id.name,
+                    payload=formatted_payload,
+                    qos=rec.qos or 0,
+                    retain=rec.retain or False,
+                    properties=properties,
                 )
-                
-                # Set userdata with necessary information
-                userdata = {
-                    'topic': topic,
-                    'qos': qos,
-                    'subscription_id': subscription_id,
-                    'dbname': dbname,
-                    'uid': uid,
-                    'context': context
+
+                client.disconnect()
+
+                # Data message for history
+                data_message = {
+                    'broker_id': rec.broker_id.id,
+                    'subscription_id': rec.id,
+                    'topic': rec.topic_id.name,
+                    'format_payload': rec.format_payload,
+                    'payload': rec.payload,
+                    'qos': rec.qos,
+                    'retain': rec.retain,
+                    'direction': rec.direction,
                 }
-                client.user_data_set(userdata)
 
-                def on_connect(client, userdata, flags, rc, properties=None):
-                    if rc == 0:
-                        # Connection successful
-                        client.subscribe(userdata['topic'], qos=userdata['qos'])
-                    else:
-                        _logger.error(f"MQTT connect failed with code {rc}")
+                # Record the time of sending
+                rec.publish_at = fields.Datetime.now()
 
-                def on_subscribe(client, userdata, mid, granted_qos, properties=None):
-                    try:
-                        with registry(userdata['dbname']).cursor() as new_cr:
-                            new_env = api.Environment(new_cr, userdata['uid'], userdata['context'])
-                            subscription = new_env['mqtt.subscription'].browse(userdata['subscription_id'])
-                            _logger.info(f"[SUBACK] Subscribed to {subscription.topic} with QoS {granted_qos}")
-                            subscription.write({
-                                'subscription_status': 'subscribed',
-                                'subscription_time': fields.Datetime.now(),
-                            })
-                            new_cr.commit()
-                    except Exception as e:
-                        _logger.error(f"Error in on_subscribe: {e}")
-                        # If subscription fails, update status
-                        try:
-                            with registry(userdata['dbname']).cursor() as new_cr:
-                                new_env = api.Environment(new_cr, userdata['uid'], userdata['context'])
-                                subscription = new_env['mqtt.subscription'].browse(userdata['subscription_id'])
-                                subscription.write({'subscription_status': 'fail'})
-                                new_cr.commit()
-                        except Exception as inner_e:
-                            _logger.error(f"Failed to update subscription status: {inner_e}")
+                # Save history
+                self.env['mqtt.message.history'].create(data_message)
 
-                client.on_connect = on_connect
-                client.on_subscribe = on_subscribe
+            except Exception as e:
+                _logger.error(f"Publish message failed: {e}")
+                raise UserError(f'Publish message failed: {str(e)}.')
 
+    def _prepare_payload_for_publish(self):
+        """Prepare payload based on format_payload setting"""
+        if self.format_payload == 'json':
+            # Ensure JSON is properly formatted
+            try:
+                parsed = json.loads(self.payload)
+                return json.dumps(parsed, separators=(',', ':'))
+            except json.JSONDecodeError:
+                raise UserError("Invalid JSON payload.")
+
+        elif self.format_payload == 'base64':
+            try:
+                return base64.b64decode(self.payload)
+            except Exception:
+                raise UserError("Invalid Base64 payload.")
+
+        elif self.format_payload == 'hex':
+            try:
+                cleaned_hex = self.payload.replace(' ', '').replace('\n', '')
+                return bytes.fromhex(cleaned_hex)
+            except ValueError:
+                raise UserError("Invalid Hex payload.")
+
+        else:  # plaintext
+            return self.payload
+
+    def action_subscribe(self):
+        """Subscribe to topic and update status."""
+        for rec in self:
+            broker = rec.broker_id
+            topic = rec.topic_id
+            if not broker:
+                raise UserError("Broker not selected.")
+            if not topic or topic.status != 'confirm':
+                raise UserError('Topic confirmed not found!')
+
+            try:
+                userdata = {
+                    'topic': rec.topic_id.name,
+                    'qos': rec.qos,
+                    'subscription_id': rec.id,
+                    'broker_id': broker.id,
+                    'dbname': self.env.cr.dbname,
+                    'uid': self.env.uid,
+                    'context': self.env.context,
+                }
+                client = broker_client(
+                    client_id=broker.client_id,
+                    protocol='MQTTv5',
+                    userdata=userdata
+                )
                 if broker.username:
                     client.username_pw_set(broker.username, broker.password or None)
 
                 client.connect(broker.host, int(broker.port), broker.keepalive)
-                client.loop_start()
+                client.subscribe(rec.topic_id.name, qos=rec.qos or 0)
+                threading.Event().wait(0.5)
+                client.disconnect()
 
-                _logger.info(f"Subscription request sent to broker {broker.name} - Topic: {topic}")
+                rec.write({
+                    'status': 'subscribe',
+                    'progressing_subscription': 'Subscription successfully.',
+                    'subscription_time': fields.Datetime.now()
+                })
+
+                self.env['bus.bus']._sendone(
+                    userdata['dbname'],
+                    ['mqtt_realtime'],
+                    {
+                        'topic': rec.topic_id.name,
+                        'payload': rec.payload,
+                        'qos': rec.qos,
+                        'direction': 'outgoing',
+                        'broker': rec.broker_id.name,
+                        'timestamp': str(fields.Datetime.now())
+                    }
+                )
+
+                _logger.info(f"Subscribed to {rec.topic_id.name} on broker {broker.name}.")
+
+                self.env.cr.commit()
+                # Restart the listener if running to apply immediately
+                if broker.listener_status == 'run':
+                    _logger.info(f"Restarting listener for broker {broker.name} after subscribe.")
+                    broker.action_reconnect()
+
             except Exception as e:
-                rec.write({'subscription_status': 'fail'})
-                raise UserError(f"Error subscribing to topic: {e}")
+                _logger.error(f"Subscribe to {rec.topic_id.name} error: {e}")
+                rec.write({
+                    'status': 'fail',
+                    'progressing_subscription': f"Fail Subscribe to {rec.topic_id.name}.",
+                })
 
-    def _compute_publish_signal_count(self):
+    def action_unsubscribe(self):
+        """Unsubscribe from topic and update status."""
         for rec in self:
-            publish_signal = self.env['mqtt.publish.signal'].search([
-                ('subscription_id', '=', rec.id)
-            ])
-            rec.publish_signal_count = len(publish_signal)
+            broker = rec.broker_id
+            if not broker:
+                raise UserError("Broker not selected.")
 
-    def action_check_publish_signal(self):
-            self.ensure_one()
-            action = self.env.ref('mqtt_integration.view_mqtt_publish_signal_action').read()[0]
-            action['domain'] = [
+            try:
+                client = broker_client(
+                    client_id=broker.client_id,
+                    protocol='MQTTv5'
+                )
+                if broker.username:
+                    client.username_pw_set(broker.username, broker.password or None)
+
+                client.connect(broker.host, int(broker.port), broker.keepalive)
+                client.unsubscribe(rec.topic_id.name)
+                threading.Event().wait(0.5)
+                client.disconnect()
+
+                rec.write({
+                    'status': 'unsubscribe',
+                    'progressing_subscription': 'Unsubscribe successfully.',
+                    'unsubscription_time': fields.Datetime.now(),
+                })
+
+                self.env['bus.bus']._sendone(
+                    self.env.cr.dbname,
+                    ['mqtt_realtime'],
+                    {
+                        'topic': rec.topic_id.name,
+                        'payload': rec.payload,
+                        'qos': rec.qos,
+                        'direction': 'outgoing',
+                        'broker': rec.broker_id.name,
+                        'timestamp': str(fields.Datetime.now())
+                    }
+                )
+
+                _logger.info(f"Unsubscribed from {rec.topic_id.name} on broker {broker.name}.")
+
+                self.env.cr.commit()
+                # Restart the listener if running to apply immediately
+                if broker.listener_status == 'run':
+                    _logger.info(f"Restarting listener for broker {broker.name} after unsubscribe.")
+                    broker.action_stop_listener()
+                    threading.Event().wait(0.5)
+                    broker.action_start_listener()
+
+            except Exception as e:
+                _logger.error(f"Unsubscribe to {rec.topic_id.name} error: {e}")
+                rec.write({
+                    'status': 'fail',
+                    'progressing_subscription': f"Failed to Unsubscribe to {rec.topic_id.name}.",
+                })
+
+    def action_renew_subscription(self):
+        """Renew MQTT Subscription."""
+        for broker in self:
+            broker.write({
+                'status': 'new',
+                'subscription_time': False,
+                'unsubscription_time': fields.Datetime.now(),
+                'progressing_subscription': 'Renew MQTT Subscription successfully.',
+            })
+
+    def action_review_topic(self):
+        self.ensure_one()
+        if not self.topic_id or not self.broker_id:
+            raise UserError("Missing topic or broker.")
+
+        action = self.env.ref('mqtt_integration.view_mqtt_topic_action').read()[0]
+        action.update({
+            'domain': [
+                ('id', '=', self.topic_id.id),
+                ('broker_id', '=', self.broker_id.id)
+            ],
+            'context': {
+                'default_id': self.topic_id.id,
+                'default_broker_id': self.broker_id.id
+            }
+        })
+        return action
+
+    def action_review_incoming_history(self):
+        self.ensure_one()
+        action = self.env.ref('mqtt_integration.action_mqtt_incoming_message').read()[0]
+        action.update({
+            'domain': [
                 ('subscription_id', '=', self.id),
-            ]
-            action['context'] = {'default_subscription_id': self.id}
-            return action
+                ('direction', '=', 'incoming'),
+            ],
+            'context': {
+                'default_subscription_id': self.id,
+                'default_direction': 'incoming'
+            }
+        })
+        return action
+
+    def action_review_outgoing_history(self):
+        self.ensure_one()
+        action = self.env.ref('mqtt_integration.action_mqtt_outgoing_message').read()[0]
+        action.update({
+            'domain': [
+                ('subscription_id', '=', self.id),
+                ('direction', '=', 'outgoing'),
+            ],
+            'context': {
+                'default_subscription_id': self.id,
+                'default_direction': 'outgoing'
+            }
+        })
+        return action

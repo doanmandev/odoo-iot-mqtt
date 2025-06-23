@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Views -->
     <record id="view_mqtt_user_property_tree" model="ir.ui.view">
@@ -7,15 +8,14 @@
             <tree string="User Properties">
                 <field name="key"/>
                 <field name="value"/>
-                <field name="signal_id"/>
+                <field name="topic_id"/>
                 <field name="history_id"/>
                 <field name="content_type" optional="hide"/>
-                <field name="payload_format" optional="hide"/>
+                <field name="format_payload" optional="hide"/>
                 <field name="expiry" optional="hide"/>
-                <field name="topic_alias" optional="hide"/>
                 <field name="response_topic" optional="hide"/>
                 <field name="correlation_data" optional="hide"/>
-                <field name="subscription_id" optional="hide"/>
+                <field name="subscription_identifier" optional="hide"/>
             </tree>
         </field>
     </record>
@@ -30,29 +30,24 @@
                         <group>
                             <field name="key"/>
                             <field name="value"/>
-                            <field name="signal_id"
+                            <field name="topic_id"
                                    options="{
-                                   'no_open': True,
                                    'no_create': True,
                                    'no_create_edit': True,
-                                   'no_quick_create': True
                                    }"/>
                             <field name="history_id"
                                    options="{
-                                   'no_open': True,
                                    'no_create': True,
                                    'no_create_edit': True,
-                                   'no_quick_create': True
                                    }"/>
                             <field name="content_type"/>
-                            <field name="payload_format"/>
+                            <field name="format_payload"/>
                             <field name="expiry"/>
                         </group>
                         <group>
-                            <field name="topic_alias"/>
                             <field name="response_topic"/>
                             <field name="correlation_data"/>
-                            <field name="subscription_id"/>
+                            <field name="subscription_identifier"/>
                         </group>
                     </group>
                 </sheet>
@@ -75,7 +70,7 @@
     <!-- Menu -->
     <menuitem id="menu_mqtt_metadata"
               name="Metadata (User Properties)"
-              parent="mqtt_integration.menu_mqtt_signal_history"
+              parent="mqtt_integration.menu_mqtt_message_history"
               action="action_mqtt_metadata"
               sequence="3"/>
 

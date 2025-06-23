@@ -1,6 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_mqtt_broker,mqtt.broker,model_mqtt_broker,base.group_user,1,1,1,1
 access_mqtt_subscription,mqtt.subscription,model_mqtt_subscription,base.group_user,1,1,1,1
-access_mqtt_publish_signal,mqtt.publish.signal,model_mqtt_publish_signal,base.group_user,1,1,1,1
-access_mqtt_publish_signal_history,mqtt.publish.signal.history,model_mqtt_publish_signal_history,base.group_user,1,1,1,1
+access_mqtt_topic,mqtt.topic,model_mqtt_topic,base.group_user,1,1,1,1
+access_mqtt_message_history,mqtt.message.history,model_mqtt_message_history,base.group_user,1,1,1,1
 access_mqtt_user_property,mqtt.user.property,model_mqtt_user_property,base.group_user,1,1,1,1

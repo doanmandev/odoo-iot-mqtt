@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Views -->
     <record id="view_mqtt_subscription_tree" model="ir.ui.view">
@@ -5,12 +6,19 @@
         <field name="model">mqtt.subscription</field>
         <field name="arch" type="xml">
             <tree string="Subscriptions">
-                <field name="display_name"/>
+                <field name="name"/>
+                <field name="status"/>
+                <field name="direction"/>
+                <field name="format_payload" optional="hide"/>
                 <field name="broker_id"/>
-                <field name="topic"/>
-                <field name="qos"/>
-                <field name="subscription_time"/>
-                <field name="subscription_status"/>
+                <field name="topic_id"/>
+                <field name="payload"/>
+                <field name="qos" optional="hide"/>
+                <field name="retain" optional="hide"/>
+                <field name="subscription_time" optional="hide"/>
+                <field name="unsubscription_time" optional="hide"/>
+                <field name="progressing_subscription" optional="hide"/>
+                <field name="is_allow_user_property" optional="hide"/>
             </tree>
         </field>
     </record>
@@ -21,51 +29,129 @@
         <field name="arch" type="xml">
             <form string="Subscription">
                 <header>
-                    <field name="subscription_status" widget="statusbar"
-                           statusbar_visible="subscribed,subscribing,fail"/>
-                    <button name="action_subscribe" type="object"
-                            string="Submit"
-                            invisible="subscription_status not in ['fail', False]"
+                    <field name="status" widget="statusbar" statusbar_visible="new,subscribe,unsubscribe,fail"/>
+                    <button name="action_renew_subscription"
+                            type="object"
+                            string="Renew Subscription"
+                            invisible="status == 'new'"
                             class="btn-primary"/>
+                    <button name="action_subscribe"
+                            type="object"
+                            string="Subscribe"
+                            invisible="status == 'subscribe'"
+                            class="btn-primary"/>
+                    <button name="action_unsubscribe"
+                            type="object"
+                            string="Unsubscribe"
+                            invisible="status in ['unsubscribe', 'fail', 'new']"
+                            class="btn-secondary"/>
+                    <button name="action_publish_message"
+                            type="object"
+                            string="Publish Message"
+                            invisible="status != 'subscribe', direction == 'incoming'"
+                            class="btn-primary"/>
+                    <button name="action_format_json_payload"
+                            string="Format JSON"
+                            type="object"
+                            class="btn-primary"
+                            invisible="format_payload != 'json'"/>
+                    <button name="action_validate_payload"
+                            type="object"
+                            string="Validate Payload"
+                            invisible="format_payload == 'plaintext'"
+                            class="btn-info"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="action_check_publish_signal" type="object"
-                            class="oe_stat_button"
+                        <button name="action_review_topic" type="object"
+                                class="oe_stat_button"
                                 icon="fa-file-text-o"
-                                context="{'broker_id': id}">
+                                context="{'id': topic_id, 'broker_id': broker_id}">
                             <div class="o_stat_info text-center d-flex flex-column align-items-center justify-content-center">
-                                <field name="publish_signal_count" class="o_stat_value"/>
-                                <span class="o_stat_text" invisible="publish_signal_count &lt; 2">
-                                    Publish multiple signals
+                                <field name="topic_count" class="o_stat_value"/>
+                                <span class="o_stat_text" invisible="topic_count &lt; 2">
+                                    Topics
                                 </span>
-                                <span class="o_stat_text" invisible="publish_signal_count &gt; 1">
-                                    Publish signal
+                                <span class="o_stat_text" invisible="topic_count &gt; 1">
+                                    Topic
+                                </span>
+                            </div>
+                        </button>
+                        <button name="action_review_incoming_history" type="object"
+                                class="oe_stat_button"
+                                icon="fa-file-text-o"
+                                context="{'signal_id': id}">
+                            <div class="o_stat_info text-center d-flex flex-column align-items-center justify-content-center">
+                                <field name="incoming_message_count" class="o_stat_value"/>
+                                <span class="o_stat_text" invisible="incoming_message_count &lt; 2">
+                                    Incoming Messages
+                                </span>
+                                <span class="o_stat_text" invisible="incoming_message_count &gt; 1">
+                                    Incoming Message
+                                </span>
+                            </div>
+                        </button>
+                        <button name="action_review_outgoing_history" type="object"
+                                class="oe_stat_button"
+                                icon="fa-file-text-o"
+                                context="{'signal_id': id}">
+                            <div class="o_stat_info text-center d-flex flex-column align-items-center justify-content-center">
+                                <field name="outgoing_message_count" class="o_stat_value"/>
+                                <span class="o_stat_text" invisible="outgoing_message_count &lt; 2">
+                                    Outgoing Messages
+                                </span>
+                                <span class="o_stat_text" invisible="outgoing_message_count &gt; 1">
+                                    Outgoing Message
                                 </span>
                             </div>
                         </button>
                     </div>
                     <group>
-                        <field name="display_name" readonly="1"/>
-                        <field name="broker_id"
-                               options="{
-                               'no_open': True,
-                               'no_create': True,
-                               'no_quick_create': True,
-                               'no_create_edit': True}"/>
-                        <field name="user_id"
-                               options="{
-                               'no_open': True,
-                               'no_create': True,
-                               'no_quick_create': True,
-                               'no_create_edit': True}"/>
-                        <field name="topic"/>
-                        <field name="qos"/>
-                        <field name="no_local_flag"/>
-                        <field name="retain_as_published_flag"/>
-                        <field name="retain_handling"/>
-                        <field name="subscription_time" readonly="1"/>
+                        <group>
+                            <field name="name" placeholder="MQTT Subscription..."/>
+                            <field name="broker_id"
+                                   options="{
+                                   'no_create': True,
+                                   'no_create_edit': True
+                                   }"/>
+                            <field name="topic_id"
+                                   options="{
+                                   'no_create': True,
+                                   'no_create_edit': True
+                                   }"/>
+                            <field name="is_allow_user_property"/>
+                            <field name="format_payload"/>
+                            <field name="qos"/>
+                            <field name="retain"/>
+                        </group>
+                        <group>
+                            <field name="direction"/>
+                            <field name="progressing_subscription" readonly="1"/>
+                            <field name="create_date" readonly="1"/>
+                            <field name="publish_at" readonly="1"/>
+                            <field name="subscription_time" readonly="1"/>
+                            <field name="unsubscription_time" readonly="1"/>
+                        </group>
                     </group>
+                    <notebook>
+                        <page name="payload_page" string="Payload">
+                            <field name="payload"/>
+                        </page>
+                        <page name="user_property_page" string="User Properties" invisible="not is_allow_user_property">
+                            <field name="user_property_ids">
+                                <tree>
+                                    <field name="key"/>
+                                    <field name="value"/>
+                                    <field name="content_type" optional="hide"/>
+                                    <field name="format_payload" optional="hide"/>
+                                    <field name="expiry" optional="hide"/>
+                                    <field name="response_topic" optional="hide"/>
+                                    <field name="correlation_data" optional="hide"/>
+                                    <field name="subscription_identifier" optional="hide"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids" groups="base.group_user"/>

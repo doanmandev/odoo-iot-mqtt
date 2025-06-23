@@ -8,9 +8,8 @@ class MQTTUserProperty(models.Model):
 
     key = fields.Char(string='Key', required=True)
     value = fields.Char(string='Value')
-    signal_id = fields.Many2one('mqtt.publish.signal', string='Signal')
-    history_id = fields.Many2one('mqtt.publish.signal.history', string='History')
-
+    topic_id = fields.Many2one('mqtt.topic', string='Topic')
+    history_id = fields.Many2one('mqtt.message.history', string='History')
     content_type = fields.Char(
         string='Content Type',
         help="Defines the content type of the payload, "
@@ -20,7 +19,7 @@ class MQTTUserProperty(models.Model):
              "to process (e.g. if the receiver is json, parse json).\n"
              "Useful when you transmit diverse data."
     )
-    payload_format = fields.Char(
+    format_payload = fields.Char(
         string='Payload Format Indicator',
         help="Select payload type: 0 (binary string) or 1 (text string).\n"
              "Uses:\n"
@@ -33,13 +32,6 @@ class MQTTUserProperty(models.Model):
              "if it has not been delivered to the subscriber.\n"
              "Uses:\n"
              "Ensures that the message does not exist forever if the subscriber connects too late."
-    )
-    topic_alias = fields.Char(
-        string='Topic Alias',
-        help="Create an alias for the topic to reduce packet size in subsequent messages "
-             "(used a lot with IoT devices that send the same topic repeatedly).\n"
-             "Uses:\n"
-             "Optimize bandwidth, but not all brokers/clients support or need it."
     )
     response_topic = fields.Char(
         string='Response Topic',
@@ -54,7 +46,7 @@ class MQTTUserProperty(models.Model):
              "Uses:\n"
              "Serves scenarios for comparing and authenticating requests - responses."
     )
-    subscription_id = fields.Char(
+    subscription_identifier = fields.Char(
         string='Subscription Identifier',
         help="Assigns an identifier to a subscription to distinguish different subscription streams.\n"
              "Uses:\n"
