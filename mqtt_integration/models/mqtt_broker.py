@@ -487,12 +487,12 @@ class MQTTBroker(models.Model):
     @api.model
     def _cron_broker_listener_auto_start(self):
         """Cron job to auto start all connected brokers"""
-        self.ensure_one()
-        try:
-            self.auto_start_all_listeners()
-        except Exception as e:
-            _logger.error(f"Error auto start listener for broker {self.name}: {e}")
-            pass
+        for broker in self:
+            try:
+                broker.auto_start_all_listeners()
+            except Exception as e:
+                _logger.error(f"Error auto start listener for broker {broker.name}: {e}")
+                pass
 
     # Basic method when Odoo start
     @api.model
