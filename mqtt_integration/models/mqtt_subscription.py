@@ -406,7 +406,7 @@ class MQTTSubscription(models.Model):
         if not self.topic_id or not self.broker_id:
             raise UserError("Missing topic or broker.")
 
-        action = self.env.ref('mqtt_integration.view_mqtt_topic_action').read()[0]
+        action = self.env.ref('mqtt_integration.action_mqtt_topic').read()[0]
         action.update({
             'domain': [
                 ('id', '=', self.topic_id.id),

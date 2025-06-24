@@ -1,4 +1,4 @@
-# MQTT Integration for Odoo
+MQTT Instance
 ---
 
 ## 1. Overview
@@ -71,7 +71,7 @@ This module enables Odoo to **communicate in real-time with IoT devices and exte
   - `action_subscribe`, `action_unsubscribe`, `action_renew_subscription`, `action_publish_message`  
   - Payload validation and formatting tools for debugging.
 - **Validation:** Payload is checked to match the specified format.
-- On subscribe/unsubscribe, the listener is auto-restarted so threads instantly pick up new topics.
+- On subscribe/unsubscribe, the listener is auto-restarted, so threads instantly pick up new topics.
 
 ### 3.4. Message History (`mqtt.message.history`)
 - Logs all messages (incoming/outgoing), including broker, subscription, topic, format, payload, QoS, retain, timestamp.
@@ -94,9 +94,9 @@ This module enables Odoo to **communicate in real-time with IoT devices and exte
 
 - **Odoo Lifecycle:**
   - On module install (`_post_init_hook`): auto-start listeners for all brokers currently connected.
-  - On uninstall (`_uninstall_hook`): auto-stop/cleanup listeners for all brokers.
+  - On uninstallation (`_uninstall_hook`): auto-stop/cleanup listeners for all brokers.
   - On Odoo restart:  
-    - `_auto_start_mqtt` hook (via manifest or called manually) + cron (every 10 min) to ensure listeners are never left "offline".
+    - `_auto_start_mqtt` hook (via manifest or called manually) + cron (every 10 min) to ensure listeners are never left "offline."
   - `odoo_restart_handler.py` uses `atexit` to clean up listeners on abrupt Odoo shutdown.
 
 ---

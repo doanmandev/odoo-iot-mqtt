@@ -75,7 +75,7 @@
     </record>
 
     <!-- Actions -->
-    <record id="view_mqtt_topic_action" model="ir.actions.act_window">
+    <record id="action_mqtt_topic" model="ir.actions.act_window">
         <field name="name">Topics</field>
         <field name="res_model">mqtt.topic</field>
         <field name="view_mode">tree,form</field>
@@ -90,7 +90,7 @@
     <menuitem id="menu_mqtt_topic"
               name="Topics"
               parent="mqtt_integration.menu_mqtt_configuration"
-              action="view_mqtt_topic_action"
+              action="action_mqtt_topic"
               sequence="3"/>
 
 </odoo>
