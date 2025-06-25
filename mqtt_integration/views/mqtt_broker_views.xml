@@ -36,6 +36,7 @@
                             <field name="url_scheme"/>
                             <field name="host"/>
                             <field name="port"/>
+                            <field name="clean_session"/>
                         </group>
                         <group>
                             <field name="client_id"/>

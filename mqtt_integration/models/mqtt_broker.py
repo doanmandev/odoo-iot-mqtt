@@ -17,7 +17,7 @@ class MQTTBroker(models.Model):
         ('ws://', 'WS')], default='mqtt://', string='URI scheme', required=True, tracking=True)
     host = fields.Char(string='Host', default='broker.emqx.io', required=True, tracking=True)
     port = fields.Char(string='Port', default='1883', required=True, tracking=True)
-    client_id = fields.Char(string='Client ID', required=True, readonly=True, copy=False,
+    client_id = fields.Char(string='Client ID', required=True, copy=False,
                            default=lambda self: self._generate_client_id())
     username = fields.Char(string='Username', default='', tracking=True)
     password = fields.Char(string='Password', default='')
@@ -30,6 +30,13 @@ class MQTTBroker(models.Model):
         ('success', 'Success'),
         ('fail', 'Fail'),
     ], string='Connection Status', default='unknown', readonly=True, tracking=True)
+    clean_session = fields.Boolean(
+        string="Clean Session",
+        required=True,
+        default=True,
+        help="Connect as a non-persistent client, meaning Mosquitto will not buffer "
+             "messages while we are disconnected, even at elevated QoS",
+    )
 
     @api.model
     def _generate_client_id(self):

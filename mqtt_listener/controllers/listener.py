@@ -28,6 +28,7 @@ class MQTTListener(threading.Thread):
         self.username = ""
         self.password = ""
         self.topics = [("mqtt/test", 0)]  # Default theme to test
+        self.clean_session = True
         self.is_configured = False  # Configuration status
         
         # Read configuration from the database if available
@@ -56,12 +57,16 @@ class MQTTListener(threading.Thread):
                     self.port = broker_conn.port
                     self.username = broker_conn.username or ""
                     self.password = broker_conn.password or ""
+                    self.clean_session = broker_conn.clean_session
                     self.is_configured = True
                 
                     # Update client_id if available
                     if broker_conn.client_id:
-                        self.client = mqtt.Client(client_id=broker_conn.client_id, 
-                                                callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+                        self.client = mqtt.Client(
+                            client_id=broker_conn.client_id,
+                            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                            clean_session=self.clean_session,
+                        )
                 
                     # Config username and password
                     if self.username:
@@ -152,9 +157,6 @@ class MQTTListener(threading.Thread):
         
         # Set keepalive lower to detect connection loss faster
         keepalive = 30
-        
-        # Set clean_session=True to avoid storing old messages
-        self.client.clean_session = True
 
         # Check if the configuration is valid
         if not self.broker or int(self.port) <= 0:
