@@ -1,16 +1,27 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields
+from odoo import models, fields, api
 
 
-class MQTTUserProperty(models.Model):
-    _name = 'mqtt.user.property'
-    _description = 'MQTT User Property'
+class MQTTMetadata(models.Model):
+    _name = 'mqtt.metadata'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _description = 'MQTT Metadata (User Properties)'
 
-    key = fields.Char(string='Key', required=True)
-    value = fields.Char(string='Value')
+    name = fields.Char(string='Name', compute='_compute_name', store=True)
+    direction = fields.Selection(
+        [('outgoing', 'Outgoing'), ('incoming', 'Incoming')],
+        default='outgoing', string='Direction', required=True
+    )
+    timestamp = fields.Datetime(string='Timestamp', default=fields.Datetime.now, readonly=True)
     topic_id = fields.Many2one('mqtt.topic', string='Topic')
     history_id = fields.Many2one('mqtt.message.history', string='History')
-    content_type = fields.Char(
+    subscription_id = fields.Many2one('mqtt.subscription', string='Subscription')
+    metadata_value_ids = fields.One2many(
+        'mqtt.metadata.value', 'metadata_id', string='Metadata Values'
+    )
+    content_type = fields.Selection(
+        [('application/json', 'JSON'), ('text/plain', 'Plain Text'), ('image/jpeg', 'JPEG Image')],
+        default='text/plain',
         string='Content Type',
         help="Defines the content type of the payload, "
              "e.g. application/json, text/plain, image/jpeg, etc.\n"
@@ -19,14 +30,17 @@ class MQTTUserProperty(models.Model):
              "to process (e.g. if the receiver is json, parse json).\n"
              "Useful when you transmit diverse data."
     )
-    format_payload = fields.Char(
+    format_payload = fields.Selection(
+        [('0', '0 - Binary String'), ('1', '1 - Text String')],
+        default='1',
         string='Payload Format Indicator',
         help="Select payload type: 0 (binary string) or 1 (text string).\n"
              "Uses:\n"
              "Determines the data type of the payload, serving correct processing at the receiver."
     )
-    expiry = fields.Char(
-        string= 'Message Expiry Interval',
+    expiry = fields.Integer(
+        default=30,
+        string= 'Message Expiry Interval (seconds)',
         help="Set the message time to live (seconds). "
              "After this time, the message will be discarded by the broker "
              "if it has not been delivered to the subscriber.\n"
@@ -46,9 +60,21 @@ class MQTTUserProperty(models.Model):
              "Uses:\n"
              "Serves scenarios for comparing and authenticating requests - responses."
     )
-    subscription_identifier = fields.Char(
+    subscription_identifier = fields.Integer(
+        default=0,
         string='Subscription Identifier',
         help="Assigns an identifier to a subscription to distinguish different subscription streams.\n"
              "Uses:\n"
              "Easy to track subscription streams when analyzing/monitoring."
     )
+
+    @api.depends('subscription_id')
+    def _compute_name(self):
+        for rec in self:
+            if rec.subscription_id:
+                display_name = rec.subscription_id.name or "Unknown Subscription Metadata"
+                local_timestamp = fields.Datetime.context_timestamp(self, rec.timestamp)
+                formatted_time = local_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                rec.name = f"{display_name} - {formatted_time}"
+            else:
+                rec.name = "Incomplete Configuration"

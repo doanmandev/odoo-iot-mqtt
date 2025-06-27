@@ -16,15 +16,15 @@ This module enables Odoo to **communicate in real-time with IoT devices and exte
 
 ### 2.1. Core Components
 
-| Component            | Model/Class            | Key Functionality                                  |
-|----------------------|-----------------------|----------------------------------------------------|
-| **Broker**           | `mqtt.broker`         | Broker management, connect/disconnect, listener management, status tracking |
-| **Topic**            | `mqtt.topic`          | Topic management per broker                        |
-| **Subscription**     | `mqtt.subscription`   | Register/unregister topic subscriptions, manage status |
-| **Message History**  | `mqtt.message.history`| Log incoming/outgoing messages, link to properties |
-| **User Property**    | `mqtt.user.property`  | Store MQTT v5 user properties per message          |
-| **Listener Service** | (thread/service)      | Background thread listens to broker, processes messages, logs history |
-| **Hook & Cron**      | `__init__.py` + cron.xml | Auto start/stop listeners on install, uninstall, or Odoo restart |
+| Component            | Model/Class                               | Key Functionality                                  |
+|----------------------|-------------------------------------------|----------------------------------------------------|
+| **Broker**           | `mqtt.broker`                             | Broker management, connect/disconnect, listener management, status tracking |
+| **Topic**            | `mqtt.topic`                              | Topic management per broker                        |
+| **Subscription**     | `mqtt.subscription`                       | Register/unregister topic subscriptions, manage status |
+| **Message History**  | `mqtt.message.history`                    | Log incoming/outgoing messages, link to properties |
+| **User Property**    | `mqtt.metadata` and `mqtt.metadata.value` | Store MQTT v5 user properties per message          |
+| **Listener Service** | (thread/service)                          | Background thread listens to broker, processes messages, logs history |
+| **Hook & Cron**      | `__init__.py` + cron.xml                  | Auto start/stop listeners on install, uninstall, or Odoo restart |
 
 ### 2.2. Operation Flow
 
@@ -42,7 +42,7 @@ This module enables Odoo to **communicate in real-time with IoT devices and exte
    - Messages can be sent from Odoo to MQTT (`action_publish_message`),  
    - Received messages are automatically logged in `mqtt.message.history`.
 6. **User Property & Metadata:**  
-   - Automatically records all MQTT v5 properties of each message in `mqtt.user.property` for auditing and traceability.
+   - Automatically records all MQTT v5 properties of each message in `mqtt.metadata` and `mqtt.metada.value` for auditing and traceability.
 7. **Lifecycle & Auto Recovery:**  
    - Uses Odoo hooks (`_post_init_hook`, `_uninstall_hook`, `_auto_start_mqtt`) and a periodic cron job to ensure all listeners are always running in line with broker status, even after Odoo restarts or module (un)installs.
 
@@ -78,7 +78,7 @@ This module enables Odoo to **communicate in real-time with IoT devices and exte
 - **Auto-generated display_name** (Broker - Topic - timestamp) for easy reference.
 - Complete audit/history tracking.
 
-### 3.5. User Property (`mqtt.user.property`)
+### 3.5. User Property (`mqtt.metadata` and `mqtt.metadata.value`)
 - Records all MQTT v5 message properties: key, value, content_type, format_payload, expiry, response_topic, correlation_data, subscription_identifier, etc.
 - Linked to each topic/message/history.
 - Clear UI for querying properties.

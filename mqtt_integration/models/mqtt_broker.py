@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, registry, SUPERUSER_ID
 from odoo.exceptions import UserError
-from ..utils import broker_client
+from ..utils import broker_client, get_first_or_zero
 import os
 import time
 import math
@@ -40,10 +40,15 @@ class MQTTBroker(models.Model):
     host = fields.Char(string='Host', default='broker.emqx.io', required=True, tracking=True)
     port = fields.Char(string='Port', default='1883', required=True, tracking=True)
     client_id = fields.Char(string='Client ID', copy=False, default=lambda self: self._random_client_id(), required=True)
+    protocol = fields.Selection([
+        ('MQTTv31', 'MQTTv31'),
+        ('MQTTv311', 'MQTTv311'),
+        ('MQTTv5', 'MQTTv5')], string='Protocol', default='MQTTv5', tracking=True, required=True)
     username = fields.Char(string='Username', default='', tracking=True)
     password = fields.Char(string='Password', default='')
     keepalive = fields.Integer(string='Keepalive (s)', default=60)
     auto_reconnect = fields.Boolean(string='Auto Reconnect', default=False)
+    clean_session = fields.Boolean(string='Clean Session', default=False)
     note = fields.Text(string='Note')
     progressing_broker = fields.Char(string='Progressing Broker', readonly=True)
     broker_count = fields.Integer(string="Broker Count", compute="_compute_broker_count")
@@ -79,7 +84,11 @@ class MQTTBroker(models.Model):
         """Utility: return a connected MQTT client for this broker."""
         self.ensure_one()
         from ..utils import broker_client
-        client = broker_client(client_id=self.client_id, protocol='MQTTv5')
+        client = broker_client(
+            client_id=self.client_id,
+            clean_session=self.clean_session,
+            protocol=self.protocol
+        )
 
         if self.username:
             client.username_pw_set(self.username, self.password or None)
@@ -294,9 +303,15 @@ class MQTTBroker(models.Model):
                 'username': broker.username,
                 'password': broker.password,
                 'client_id': broker.client_id,
+                'protocol': broker.protocol,
+                'clean_session': broker.clean_session,
             }
 
-        client = broker_client(client_id=broker_data['client_id'], protocol='MQTTv5')
+        client = broker_client(
+            client_id=broker_data['client_id'],
+            clean_session=broker_data['clean_session'],
+            protocol=broker_data['protocol'],
+        )
         if broker_data['username']:
             client.username_pw_set(broker_data['username'], broker_data['password'] or None)
 
@@ -317,6 +332,8 @@ class MQTTBroker(models.Model):
             with registry(dbname).cursor() as cr:
                 env = api.Environment(cr, SUPERUSER_ID, {})
                 topic_env = env['mqtt.topic']
+                metadata_model = env['mqtt.metadata']
+                metadata_value_model = env['mqtt.metadata.value']
                 history_env = env['mqtt.message.history']
 
                 topic = topic_env.search([('name', '=', msg.topic)], limit=1) or False
@@ -327,9 +344,47 @@ class MQTTBroker(models.Model):
                     _logger.warning(f"Topic {msg.topic} is not subscribed.")
                     return
 
+                if hasattr(msg.properties, 'UserProperty'):
+                    user_props = msg.properties.UserProperty or {}
+                    metadata_value = []
+                    _logger.info(f"UserProperty received on {msg.topic}: {msg.properties}")
+
+                    # Properties MQTT
+                    content_type = getattr(msg.properties, 'ContentType', None)
+                    format_payload = getattr(msg.properties, 'PayloadFormatIndicator', None)
+                    expiry = getattr(msg.properties, 'MessageExpiryInterval', None)
+                    response_topic = getattr(msg.properties, 'ResponseTopic', None)
+                    correlation_data = getattr(msg.properties, 'CorrelationData', None)
+                    subscription_identifier = getattr(msg.properties, 'SubscriptionIdentifier', None)
+                    metadata_data = {
+                        'topic_id': topic.id if topic else False,
+                        'history_id': False,
+                        'subscription_id': sub_exist.id if sub_exist else False,
+                        'content_type': content_type,
+                        'format_payload': '1' if format_payload == 1 else '0',
+                        'expiry': expiry,
+                        'response_topic': response_topic,
+                        'correlation_data': correlation_data,
+                        'subscription_identifier': get_first_or_zero(subscription_identifier),
+                        'metadata_value_ids': metadata_value,
+                    }
+                    metadata = metadata_model.create(metadata_data)
+                    _logger.info(f"Metadata received on {msg.topic} created: {metadata.name or ''}.")
+
+                    for key, value in user_props:
+                        metadata_value_data = {
+                            'key': key,
+                            'value': value,
+                            'timestamp': fields.Datetime.now(),
+                            'metadata_id': metadata.id if metadata else False,
+                            'subscription_id': sub_exist.id if sub_exist else False,
+                        }
+                        metadata_value.append(metadata_value_model.create(metadata_value_data))
+
                 message_data = {
                     'broker_id': broker_id,
-                    'subscription_id': sub_exist.id or False,
+                    'metadata_id': metadata.id if metadata else False,
+                    'subscription_id': sub_exist.id if sub_exist else False,
                     'topic': topic.name if topic else msg.topic,
                     'payload': msg.payload.decode(errors='ignore'),
                     'direction': 'incoming',
@@ -338,6 +393,16 @@ class MQTTBroker(models.Model):
                     'timestamp': fields.Datetime.now(),
                 }
                 history = history_env.create(message_data)
+                _logger.info(f"Message history created for topic {msg.topic}: {history.name or ''}.")
+
+                # Update metadata with history and values
+                metadata.update({
+                    'history_id': history.id if history else False,
+                    'metadata_value_ids': [(6, 0, [mv.id for mv in metadata_value])] if metadata_value else False
+                })
+                _logger.info(f"Metadata updated with history and values for topic {msg.topic}.")
+
+                # Save to bus for real-time updates
                 env['bus.bus']._sendone(
                     dbname,
                     ['mqtt_realtime'],
@@ -348,32 +413,7 @@ class MQTTBroker(models.Model):
                         'timestamp': str(fields.Datetime.now())
                     }
                 )
-                if hasattr(msg.properties, 'UserProperty'):
-                    user_props = msg.properties.UserProperty or {}
-                    prop_model = env['mqtt.user.property']
-                    _logger.info(f"UserProperty received on {msg.topic}: {msg.properties}")
 
-                    # Properties MQTT
-                    content_type = getattr(msg.properties, 'ContentType', None)
-                    format_payload = getattr(msg.properties, 'PayloadFormatIndicator', None)
-                    expiry = getattr(msg.properties, 'MessageExpiryInterval', None)
-                    response_topic = getattr(msg.properties, 'ResponseTopic', None)
-                    correlation_data = getattr(msg.properties, 'CorrelationData', None)
-                    subscription_identifier = getattr(msg.properties, 'SubscriptionIdentifier', None)
-
-                    for key, value in user_props:
-                        prop_model.create({
-                            'key': key,
-                            'value': value,
-                            'topic_id': topic.id if topic else False,
-                            'history_id': history.id,
-                            'subscription_identifier': subscription_identifier,
-                            'content_type': content_type,
-                            'format_payload': format_payload,
-                            'expiry': expiry,
-                            'response_topic': response_topic,
-                            'correlation_data': correlation_data,
-                        })
                 _logger.info(f"Saved MQTT messages to database: {topic.broker_id.name if topic else 'Unknow'} - {msg.topic}.")
                 cr.commit()
 
@@ -486,13 +526,17 @@ class MQTTBroker(models.Model):
 
     @api.model
     def _cron_broker_listener_auto_start(self):
-        """Cron job to auto start all connected brokers"""
+        """Cron job to auto start all connection brokers"""
         for broker in self:
             try:
+                if broker.status != 'connect' and broker.auto_reconnect:
+                    broker.action_reconnect()
                 broker.auto_start_all_listeners()
             except Exception as e:
                 _logger.error(f"Error auto start listener for broker {broker.name}: {e}")
                 pass
+        _logger.info("Cron job to auto start all connected brokers completed.")
+        return True
 
     # Basic method when Odoo start
     @api.model

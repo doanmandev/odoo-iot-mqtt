@@ -25,7 +25,7 @@
     Developed by Dev Team — “Write once, benefit the whole project!”
 """
 
-def broker_client(client_id, protocol, **kwargs):
+def broker_client(client_id, clean_session, protocol, **kwargs):
     """
     Create and configure a Paho MQTT client with advanced options.
 
@@ -33,7 +33,7 @@ def broker_client(client_id, protocol, **kwargs):
         client_id (str): Unique client identifier.
         protocol: MQTT protocol version (mqtt.MQTTv31, mqtt.MQTTv311, or mqtt.MQTTv5).
         clean_session (bool, optional):
-            - Required for MQTTv31/v311 (default: False).
+            - Required for MQTTv31/v311 (default: True).
             - Must not be True when using MQTTv5.
         **kwargs: Additional client configuration options.
             - transport (str): 'tcp' or 'websockets'. Default is 'tcp'.
@@ -60,16 +60,14 @@ def broker_client(client_id, protocol, **kwargs):
     if protocol not in ['MQTTv31', 'MQTTv311', 'MQTTv5']:
         raise ValueError("protocol must be MQTTv31, MQTTv311, or MQTTv5")
     else:
-        clean_session = False
+        pr_clean_session = clean_session or False
         if protocol == 'MQTTv31':
             protocol = mqtt.MQTTv31
-            clean_session = True
         elif protocol == 'MQTTv311':
             protocol = mqtt.MQTTv311
-            clean_session = True
         elif protocol == 'MQTTv5':
             protocol = mqtt.MQTTv5
-            clean_session = None
+            pr_clean_session = None
         else:
             raise ValueError("Unsupported protocol")
 
@@ -98,7 +96,7 @@ def broker_client(client_id, protocol, **kwargs):
                 client_id=client_id.strip(),
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
                 protocol=protocol,
-                clean_session=clean_session,
+                clean_session=pr_clean_session,
                 transport=config['transport'],
             )
 
@@ -110,3 +108,24 @@ def broker_client(client_id, protocol, **kwargs):
 
     except Exception as e:
         raise RuntimeError(f"Error creating MQTT client: {e}")
+
+def get_first_or_zero(val):
+    """
+    Utility function to safely extract the first element from a list, tuple, or bytes object.
+    - If `val` is a list, tuple, or bytes, returns the first element if available; otherwise, returns 0.
+    - If `val` is any other truthy value (int, str, etc.), returns it as is.
+    - If `val` is None or falsy, returns 0.
+
+    Useful for handling MQTT property values that can be sequences or scalars.
+
+    Args:
+        val (Any): The input value (sequence, int, str, etc.)
+
+    Returns:
+        Any: The first element, or the value itself, or 0 if empty.
+    """
+    if isinstance(val, (list, tuple, bytes)):
+        return val[0] if val else 0
+    elif val:
+        return val
+    return 0

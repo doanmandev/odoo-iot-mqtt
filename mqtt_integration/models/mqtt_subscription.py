@@ -2,6 +2,8 @@
 from odoo import models, fields, api
 from odoo.exceptions import UserError, ValidationError
 from ..utils import broker_client
+from paho.mqtt.properties import Properties
+from paho.mqtt.packettypes import PacketTypes
 import json
 import base64
 import logging
@@ -39,8 +41,8 @@ class MQTTSubscription(models.Model):
              '• Plaintext: Any text format')
     broker_id = fields.Many2one('mqtt.broker', string='Broker', required=True)
     topic_id = fields.Many2one('mqtt.topic', string='Topic', domain="[('broker_id', '=', broker_id)]", required=True)
+    metadata_id = fields.Many2one('mqtt.metadata', string='Metadata', domain="[('subscription_id', '=', id)]")
     history_ids = fields.One2many('mqtt.message.history', 'subscription_id', string='Signal History')
-    user_property_ids = fields.One2many('mqtt.user.property', 'history_id', string='User Properties')
     payload = fields.Text(string='Payload', required=True, help='Message payload. Format must match the selected Format Payload type.')
     qos = fields.Integer(string='QoS', default=0)
     retain = fields.Boolean(string='Retain', default=False,
@@ -201,7 +203,11 @@ class MQTTSubscription(models.Model):
                 raise UserError(f"Payload validation failed: {str(e)}")
 
             try:
-                client = broker_client(client_id=broker.client_id, protocol='MQTTv5')
+                client = broker_client(
+                    client_id=broker.client_id,
+                    clean_session=broker.clean_session,
+                    protocol=broker.protocol
+                )
                 if broker.username:
                     client.username_pw_set(broker.username, broker.password or None)
                 client.connect(broker.host, int(broker.port), broker.keepalive)
@@ -209,20 +215,49 @@ class MQTTSubscription(models.Model):
                 # Prepare payload based on format
                 formatted_payload = rec._prepare_payload_for_publish()
 
-                properties = None
-                client.publish(
-                    topic=rec.topic_id.name,
-                    payload=formatted_payload,
-                    qos=rec.qos or 0,
-                    retain=rec.retain or False,
-                    properties=properties,
-                )
+                properties = Properties(PacketTypes.PUBLISH)
+                if not rec.metadata_id:
+                    client.publish(
+                        topic=rec.topic_id.name,
+                        payload=formatted_payload,
+                        qos=rec.qos or 0,
+                        retain=rec.retain or False,
+                        properties=None,
+                    )
+                else:
+                    properties.ContentType = rec.metadata_id.content_type or 'text/plain'
+                    properties.PayloadFormatIndicator = 1 if rec.format_payload in ['json', 'plaintext'] else 0
+                    properties.MessageExpiryInterval = int(rec.metadata_id.expiry) or 0
+                    properties.ResponseTopic = rec.metadata_id.response_topic or 'unknown Response Topic'.encode()
+                    corr = rec.metadata_id.correlation_data
+                    if isinstance(corr, str) and corr != '':
+                        properties.CorrelationData = corr.encode()
+                    else:
+                        properties.CorrelationData = corr if corr else 'unknown Correlation Data'.encode()
+                    properties.SubscriptionIdentifier = int(rec.metadata_id.subscription_identifier) or 1
+                    if rec.metadata_id.metadata_value_ids:
+                        user_properties = [
+                            (prop.key, prop.value) for prop in rec.metadata_id.metadata_value_ids
+                        ]
+                        if user_properties:
+                            properties.UserProperty = user_properties
+                    else:
+                        properties.UserProperty = None
+
+                    client.publish(
+                        topic=rec.topic_id.name,
+                        payload=formatted_payload,
+                        qos=rec.qos or 0,
+                        retain=rec.retain or False,
+                        properties=properties,
+                    )
 
                 client.disconnect()
 
                 # Data message for history
                 data_message = {
                     'broker_id': rec.broker_id.id,
+                    'metadata_id': rec.metadata_id.id if rec.metadata_id else False,
                     'subscription_id': rec.id,
                     'topic': rec.topic_id.name,
                     'format_payload': rec.format_payload,
@@ -230,6 +265,7 @@ class MQTTSubscription(models.Model):
                     'qos': rec.qos,
                     'retain': rec.retain,
                     'direction': rec.direction,
+                    'timestamp': fields.Datetime.now(),
                 }
 
                 # Record the time of sending
@@ -290,7 +326,8 @@ class MQTTSubscription(models.Model):
                 }
                 client = broker_client(
                     client_id=broker.client_id,
-                    protocol='MQTTv5',
+                    clean_session=broker.clean_session,
+                    protocol=broker.protocol,
                     userdata=userdata
                 )
                 if broker.username:
@@ -345,7 +382,8 @@ class MQTTSubscription(models.Model):
             try:
                 client = broker_client(
                     client_id=broker.client_id,
-                    protocol='MQTTv5'
+                    clean_session=broker.clean_session,
+                    protocol=broker.protocol
                 )
                 if broker.username:
                     client.username_pw_set(broker.username, broker.password or None)
