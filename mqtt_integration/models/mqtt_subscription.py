@@ -41,7 +41,8 @@ class MQTTSubscription(models.Model):
              '• Plaintext: Any text format')
     broker_id = fields.Many2one('mqtt.broker', string='Broker', required=True)
     topic_id = fields.Many2one('mqtt.topic', string='Topic', domain="[('broker_id', '=', broker_id)]", required=True)
-    metadata_id = fields.Many2one('mqtt.metadata', string='Metadata', domain="[('subscription_id', '=', id)]")
+    metadata_id = fields.Many2one('mqtt.metadata', string='Metadata')
+    is_metadata_domain = fields.Boolean(string='Is Domain ?', help="Metadata domain with topic", default=False)
     history_ids = fields.One2many('mqtt.message.history', 'subscription_id', string='Signal History')
     payload = fields.Text(string='Payload', required=True, help='Message payload. Format must match the selected Format Payload type.')
     qos = fields.Integer(string='QoS', default=0)
@@ -78,10 +79,10 @@ class MQTTSubscription(models.Model):
 
             if record.format_payload == 'json':
                 try:
-                    # Kiểm tra JSON hợp lệ
+                    # Check for valid JSON
                     parsed_json = json.loads(record.payload)
 
-                    # Kiểm tra JSON không được rỗng hoàn toàn
+                    # Check JSON is not completely empty
                     if parsed_json is None:
                         raise ValidationError("JSON payload cannot be null")
 
@@ -107,6 +108,23 @@ class MQTTSubscription(models.Model):
                     bytes.fromhex(cleaned_hex)
                 except ValueError:
                     raise ValidationError("Invalid Hex format in payload")
+
+    @api.onchange('is_metadata_domain', 'topic_id')
+    def _onchange_metadata_domain(self):
+        if self.is_metadata_domain and self.topic_id:
+            if self.metadata_id and self.metadata_id.topic_id != self.topic_id:
+                self.metadata_id = False
+            return {
+                'domain': {
+                    'metadata_id': [('topic_id', '=', self.topic_id.id)]
+                }
+            }
+        else:
+            return {
+                'domain': {
+                    'metadata_id': []
+                }
+            }
 
     @api.depends('broker_id', 'topic_id')
     def _compute_name(self):
@@ -242,7 +260,7 @@ class MQTTSubscription(models.Model):
                         if user_properties:
                             properties.UserProperty = user_properties
                     else:
-                        properties.UserProperty = None
+                        properties.UserProperty = []
 
                     client.publish(
                         topic=rec.topic_id.name,

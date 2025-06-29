@@ -39,7 +39,7 @@
                 <sheet>
                     <group>
                         <group>
-                            <field name="name" placeholder="MQTT Topic..."/>
+                            <field name="name" required="1"/>
                             <field name="broker_id"
                                    options="{
                                    'no_create': True,

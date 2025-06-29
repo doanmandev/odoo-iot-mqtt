@@ -10,7 +10,7 @@ class MQTTTopic(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'MQTT Topics'
 
-    name = fields.Char(string='Name', required=True)
+    name = fields.Char(string='Name', help="The name of the MQTT topic, e.g., 'home/temperature'.")
     status = fields.Selection([
         ('draft', 'Draft'),
         ('confirm', 'Confirmed')

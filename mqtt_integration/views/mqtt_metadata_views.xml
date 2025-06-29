@@ -30,18 +30,11 @@
                 <sheet>
                     <group>
                         <group>
-                            <field name="name"/>
+                            <field name="name" required="1"/>
                             <field name="timestamp"/>
                             <field name="direction"/>
-                            <field name="topic_id"
-                                   invisible="(context.get('direction') or direction) == 'outgoing'"
-                            />
-                            <field name="subscription_id"
-                                   invisible="(context.get('direction') or direction) == 'incoming'"
-                            />
-                            <field name="history_id"
-                                   invisible="(context.get('direction') or direction) == 'outgoing'"
-                            />
+                            <field name="topic_id"/>
+                            <field name="history_id" invisible="direction == 'outgoing'"/>
                             <field name="content_type"/>
                             <field name="format_payload"/>
                         </group>
@@ -57,7 +50,7 @@
                             <field name="metadata_value_ids"
                                    context="{
                                    'default_metadata_id': id,
-                                   'default_subscription_id': subscription_id
+                                   'default_topic_id': topic_id
                                    }">
                                 <tree editable="bottom">
                                     <field name="key"/>

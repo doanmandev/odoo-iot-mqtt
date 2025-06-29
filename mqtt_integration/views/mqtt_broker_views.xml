@@ -49,7 +49,7 @@
                             class="btn-primary"/>
                     <button name="action_stop_listener"
                             type="object" string="Stop Listener"
-                            invisible="listener_status in ['new', 'stop'], status == 'error'"
+                            invisible="listener_status in ['new', 'stop']"
                             class="btn-secondary"/>
                 </header>
                 <sheet>
@@ -72,7 +72,7 @@
                     </div>
                     <group>
                         <group>
-                            <field name="name" placeholder="MQTT Broker..."/>
+                            <field name="name" required="1"/>
                             <field name="protocol" readonly="id != False"/>
                             <field name="clean_session" invisible="protocol == 'MQTTv5'"/>
                             <field name="url_scheme" readonly="id != False"/>

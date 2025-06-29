@@ -6,13 +6,14 @@ class MQTTMetadata(models.Model):
     _name = 'mqtt.metadata'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'MQTT Metadata (User Properties)'
+    _order = "timestamp desc"
 
-    name = fields.Char(string='Name', compute='_compute_name', store=True)
+    name = fields.Char(string='Name', help="The name of the MQTT metadata, e.g.")
+    timestamp = fields.Datetime(string='Timestamp', default=fields.Datetime.now, readonly=True)
     direction = fields.Selection(
         [('outgoing', 'Outgoing'), ('incoming', 'Incoming')],
         default='outgoing', string='Direction', required=True
     )
-    timestamp = fields.Datetime(string='Timestamp', default=fields.Datetime.now, readonly=True)
     topic_id = fields.Many2one('mqtt.topic', string='Topic')
     history_id = fields.Many2one('mqtt.message.history', string='History')
     subscription_id = fields.Many2one('mqtt.subscription', string='Subscription')
@@ -67,14 +68,3 @@ class MQTTMetadata(models.Model):
              "Uses:\n"
              "Easy to track subscription streams when analyzing/monitoring."
     )
-
-    @api.depends('subscription_id')
-    def _compute_name(self):
-        for rec in self:
-            if rec.subscription_id:
-                display_name = rec.subscription_id.name or "Unknown Subscription Metadata"
-                local_timestamp = fields.Datetime.context_timestamp(self, rec.timestamp)
-                formatted_time = local_timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                rec.name = f"{display_name} - {formatted_time}"
-            else:
-                rec.name = "Incomplete Configuration"

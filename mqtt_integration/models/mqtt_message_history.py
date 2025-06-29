@@ -27,7 +27,7 @@ class MQTTMessageHistory(models.Model):
             topic_broker = f"{broker_name} - {topic_name}"
             # Convert timestamp to user's timezone
             if rec.timestamp:
-                local_timestamp = fields.Datetime.context_timestamp(self, rec.timestamp)
+                local_timestamp = fields.Datetime.context_timestamp(rec, rec.timestamp)
                 formatted_time = local_timestamp.strftime('%Y-%m-%d %H:%M:%S')
                 rec.name = f"{topic_broker} - {formatted_time}"
             else:

@@ -22,7 +22,7 @@ class MQTTBroker(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'MQTT Broker'
 
-    name = fields.Char(string='Broker Name', required=True, tracking=True)
+    name = fields.Char(string='Broker Name', tracking=True)
     status = fields.Selection([
         ('draft', 'Draft'),
         ('disconnect', 'Disconnected'),
@@ -285,7 +285,15 @@ class MQTTBroker(models.Model):
             ('status', '=', 'subscribe')
         ])
         subs = subs.with_context(prefetch_fields=['topic_id'])
-        return [sub.topic_id.name for sub in subs if sub.topic_id]
+        result = []
+        for sub in subs:
+            try:
+                if sub.topic_id:
+                    result.append(sub.topic_id.name)
+            except Exception as e:
+                continue
+
+        return result
 
     def _run_listener_thread_safe(self, broker_id, dbname, stop_event):
         reg = registry(dbname)
@@ -357,6 +365,7 @@ class MQTTBroker(models.Model):
                     correlation_data = getattr(msg.properties, 'CorrelationData', None)
                     subscription_identifier = getattr(msg.properties, 'SubscriptionIdentifier', None)
                     metadata_data = {
+                        'name': 'Metadata for ' + msg.topic + str(fields.Datetime.now()),
                         'topic_id': topic.id if topic else False,
                         'history_id': False,
                         'subscription_id': sub_exist.id if sub_exist else False,
@@ -377,7 +386,7 @@ class MQTTBroker(models.Model):
                             'value': value,
                             'timestamp': fields.Datetime.now(),
                             'metadata_id': metadata.id if metadata else False,
-                            'subscription_id': sub_exist.id if sub_exist else False,
+                            'topic_id': topic.id if topic else False,
                         }
                         metadata_value.append(metadata_value_model.create(metadata_value_data))
 

@@ -12,7 +12,7 @@ class MQTTMetadataValue(models.Model):
     value = fields.Char(string='Value')
     timestamp = fields.Datetime(string='Timestamp', default=fields.Datetime.now, readonly=True)
     metadata_id = fields.Many2one('mqtt.metadata', string='Metadata')
-    subscription_id = fields.Many2one('mqtt.subscription', string='Subscription')
+    topic_id = fields.Many2one('mqtt.topic', string='Topic')
 
     @api.depends('metadata_id')
     def _compute_name(self):

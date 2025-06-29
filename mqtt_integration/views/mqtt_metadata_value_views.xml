@@ -11,7 +11,7 @@
                 <field name="value"/>
                 <field name="timestamp"/>
                 <field name="metadata_id" optional="hide"/>
-                <field name="subscription_id" optional="hide"/>
+                <field name="topic_id" optional="hide"/>
             </tree>
         </field>
     </record>
@@ -24,9 +24,9 @@
                 <field name="name"/>
                 <field name="key"/>
                 <field name="value"/>
-                <field name="subscription_id"/>
+                <field name="topic_id"/>
                 <filter name="group_by_metadata" string="Group by Metadata" context="{'group_by':'metadata_id'}"/>
-                <filter name="group_by_subscription" string="Group by Subscription" context="{'group_by':'subscription_id'}"/>
+                <filter name="group_by_subscription" string="Group by Subscription" context="{'group_by':'topic_id'}"/>
             </search>
         </field>
     </record>
@@ -38,7 +38,7 @@
         <field name="view_mode">tree</field>
         <field name="view_id" ref="view_mqtt_user_property_value_tree"/>
         <field name="search_view_id" ref="view_mqtt_metadata_value_search"/>
-        <field name="context">{'group_by': ['subscription_id', 'metadata_name']}</field>
+        <field name="context">{'group_by': ['topic_id', 'metadata_name']}</field>
     </record>
 
     <!-- Menu -->
