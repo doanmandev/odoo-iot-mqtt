@@ -1,10 +1,7 @@
 # module
 mqtt_integration/__pycache__/
 mqtt_integration/models/__pycache__/
-mqtt_listener/__pycache__/
-mqtt_listener/controllers/__pycache__/
-mqtt_listener/models/__pycache__/
-mqtt_listener/tools/__pycache__/
+mqtt_integration/tools/__pycache__/
 
 # chore
 .DS_Store

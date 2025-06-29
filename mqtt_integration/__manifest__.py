@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name' : 'MQTT Integration',
-    'version': '0.1.0',
+    'version': '0.2.0',
     'summary' : 'Technical Module for MQTT',
     'description': """
 MQTT Integration for Odoo
@@ -11,9 +11,9 @@ Integrates MQTT protocol into Odoo for connecting with IoT devices and MQTT serv
 Features:
 - Manage connections to MQTT Brokers
 - Subscribe/monitor MQTT topics
-- Send and receive MQTT signals
+- Send and receive MQTT message
 - Store communication history
-- Support automatic signal transmission
+- Support automatic message transmission
 
 Applications:
 - IoT device monitoring
@@ -34,23 +34,24 @@ Requirements: paho-mqtt
         'static/description/mqtt_architecture.png',
         'static/description/mqtt_features.png',
         'static/description/mqtt_interface.png',
-
     ],
     'data' : [
         'security/ir.model.access.csv',
         'views/mqtt_broker_views.xml',
         'views/mqtt_subscription_views.xml',
-        'views/mqtt_signal_views.xml',
-        'views/mqtt_signal_history_views.xml',
+        'views/mqtt_topic_views.xml',
+        'views/mqtt_message_history_views.xml',
+        'views/mqtt_metadata_views.xml',
+        'views/mqtt_metadata_value_views.xml',
+        'data/cron.xml',
     ],
     'demo': [],
     'installable': True,
     'application': True,
-    'assets': {
-        'web.assets_backend': [
-            'mqtt_integration/static/src/js/mqtt_auto_send.js',
-            'mqtt_integration/static/src/xml/mqtt_auto_send.xml',
-        ],
-    },
-    'license': 'LGPL-3',
+    'auto_install': False,
+    'post_init_hook': '_post_init_hook',
+    'uninstall_hook': '_uninstall_hook',
+    'post_load': '_auto_start_mqtt',
+    'assets': {},
+    'license': 'GPL-3',
 }
