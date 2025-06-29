@@ -73,6 +73,13 @@ pip install paho-mqtt
 * Choose **Broker**, **Topic** and **Allow User Property** (_if necessary_)
 * Click **Subscribe** to activate
 
+### 4. Create Metadata (User Properties) _(if necessary)_
+
+* Navigate to **MQTT Machine> MQTT Configuration > User Properties/Metadata**
+* Define **properties** and **value properties**
+* Choose **Topic** (_if necessary_). 
+* (choose Topic: This is part of helping to know which topic this properties data belongs to.)
+
 ## 🖠️ Usage WorkFlow
 
 ### 🔹 Define Broker, Topic, Subscription
