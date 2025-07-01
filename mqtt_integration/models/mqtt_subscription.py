@@ -42,7 +42,7 @@ class MQTTSubscription(models.Model):
     broker_id = fields.Many2one('mqtt.broker', string='Broker', required=True)
     topic_id = fields.Many2one('mqtt.topic', string='Topic', domain="[('broker_id', '=', broker_id)]", required=True)
     metadata_id = fields.Many2one('mqtt.metadata', string='Metadata')
-    is_metadata_domain = fields.Boolean(string='Is Domain ?', help="Metadata domain with topic", default=False)
+    is_metadata_domain = fields.Boolean(string='Domain Metadata by Topic', help="Metadata domain with topic", default=False)
     history_ids = fields.One2many('mqtt.message.history', 'subscription_id', string='Signal History')
     payload = fields.Text(string='Payload', required=True, help='Message payload. Format must match the selected Format Payload type.')
     qos = fields.Integer(string='QoS', default=0)
@@ -111,20 +111,9 @@ class MQTTSubscription(models.Model):
 
     @api.onchange('is_metadata_domain', 'topic_id')
     def _onchange_metadata_domain(self):
-        if self.is_metadata_domain and self.topic_id:
-            if self.metadata_id and self.metadata_id.topic_id != self.topic_id:
-                self.metadata_id = False
-            return {
-                'domain': {
-                    'metadata_id': [('topic_id', '=', self.topic_id.id)]
-                }
-            }
-        else:
-            return {
-                'domain': {
-                    'metadata_id': []
-                }
-            }
+        if all([self.is_metadata_domain, self.topic_id,
+                self.metadata_id]) and self.metadata_id.topic_id != self.topic_id:
+            self.metadata_id = False
 
     @api.depends('broker_id', 'topic_id')
     def _compute_name(self):

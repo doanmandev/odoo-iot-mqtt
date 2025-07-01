@@ -120,8 +120,14 @@
                                    'no_create_edit': True
                                    }"/>
                             <field name="is_allow_user_property"/>
-                            <field name="is_metadata_domain"/>
-                            <field name="metadata_id" invisible="is_allow_user_property == False"/>
+                            <field name="is_metadata_domain" invisible="is_allow_user_property == False"/>
+                            <field name="metadata_id"
+                                   options="{
+                                   'no_create': True,
+                                   'no_create_edit': True
+                                   }"
+                                   domain="is_metadata_domain and topic_id and [('topic_id', '=', topic_id)] or []"
+                                   invisible="is_allow_user_property == False"/>
                             <field name="format_payload"/>
                             <field name="qos"/>
                             <field name="retain"/>
