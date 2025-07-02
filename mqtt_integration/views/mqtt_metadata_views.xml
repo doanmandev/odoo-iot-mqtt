@@ -30,31 +30,32 @@
                 <sheet>
                     <group>
                         <group>
-                            <field name="name" required="1"/>
+                            <field name="name" required="1" readonly="direction == 'incoming'"/>
                             <field name="timestamp"/>
-                            <field name="direction"/>
-                            <field name="topic_id"/>
-                            <field name="history_id" invisible="direction == 'outgoing'"/>
-                            <field name="content_type"/>
-                            <field name="format_payload"/>
+                            <field name="direction" readonly="direction == 'incoming'"/>
+                            <field name="topic_id" readonly="direction == 'incoming'"/>
+                            <field name="history_id" invisible="direction == 'outgoing'" readonly="direction == 'incoming'"/>
+                            <field name="content_type" readonly="direction == 'incoming'"/>
+                            <field name="format_payload" readonly="direction == 'incoming'"/>
                         </group>
                         <group>
-                            <field name="expiry"/>
-                            <field name="response_topic"/>
-                            <field name="correlation_data"/>
-                            <field name="subscription_identifier"/>
+                            <field name="expiry" readonly="direction == 'incoming'"/>
+                            <field name="response_topic" readonly="direction == 'incoming'"/>
+                            <field name="correlation_data" readonly="direction == 'incoming'"/>
+                            <field name="subscription_identifier" readonly="direction == 'incoming'"/>
                         </group>
                     </group>
                     <notebook>
                         <page name="user_property_page" string="Metadata (User Properties)">
                             <field name="metadata_value_ids"
+                                   readonly="direction == 'incoming'"
                                    context="{
                                    'default_metadata_id': id,
                                    'default_topic_id': topic_id
                                    }">
                                 <tree editable="bottom">
-                                    <field name="key"/>
-                                    <field name="value"/>
+                                    <field name="key" readonly="parent.direction == 'incoming'"/>
+                                    <field name="value" readonly="parent.direction == 'incoming'"/>
                                 </tree>
                             </field>
                         </page>
