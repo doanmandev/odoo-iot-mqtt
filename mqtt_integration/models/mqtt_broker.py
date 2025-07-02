@@ -352,63 +352,73 @@ class MQTTBroker(models.Model):
                     _logger.warning(f"Topic {msg.topic} is not subscribed.")
                     return
 
-                if hasattr(msg.properties, 'UserProperty'):
-                    user_props = msg.properties.UserProperty or {}
+                try:
+                    # Process message properties and metadata
+                    metadata = None
                     metadata_value = []
-                    _logger.info(f"UserProperty received on {msg.topic}: {msg.properties}")
 
-                    # Properties MQTT
-                    content_type = getattr(msg.properties, 'ContentType', None)
-                    format_payload = getattr(msg.properties, 'PayloadFormatIndicator', None)
-                    expiry = getattr(msg.properties, 'MessageExpiryInterval', None)
-                    response_topic = getattr(msg.properties, 'ResponseTopic', None)
-                    correlation_data = getattr(msg.properties, 'CorrelationData', None)
-                    subscription_identifier = getattr(msg.properties, 'SubscriptionIdentifier', None)
-                    metadata_data = {
-                        'topic_id': topic.id if topic else False,
-                        'history_id': False,
-                        'subscription_id': sub_exist.id if sub_exist else False,
-                        'content_type': content_type,
-                        'format_payload': '1' if format_payload == 1 else '0',
-                        'expiry': expiry,
-                        'response_topic': response_topic,
-                        'correlation_data': correlation_data,
-                        'subscription_identifier': get_first_or_zero(subscription_identifier),
-                        'metadata_value_ids': metadata_value,
-                    }
-                    metadata = metadata_model.create(metadata_data)
-                    _logger.info(f"Metadata received on {msg.topic} created: {metadata.name or ''}.")
+                    if hasattr(msg.properties, 'UserProperty'):
+                        user_props = msg.properties.UserProperty or {}
+                        _logger.info(f"UserProperty received on {msg.topic}: {msg.properties}")
 
-                    for key, value in user_props:
-                        metadata_value_data = {
-                            'key': key,
-                            'value': value,
-                            'timestamp': fields.Datetime.now(),
-                            'metadata_id': metadata.id if metadata else False,
+                        # Properties MQTT
+                        content_type = getattr(msg.properties, 'ContentType', None)
+                        format_payload = getattr(msg.properties, 'PayloadFormatIndicator', None)
+                        expiry = getattr(msg.properties, 'MessageExpiryInterval', None)
+                        response_topic = getattr(msg.properties, 'ResponseTopic', None)
+                        correlation_data = getattr(msg.properties, 'CorrelationData', None)
+                        subscription_identifier = getattr(msg.properties, 'SubscriptionIdentifier', None)
+                        metadata_data = {
+                            'name': 'Metadata for ' + msg.topic + str(fields.Datetime.now()),
                             'topic_id': topic.id if topic else False,
+                            'history_id': False,
+                            'subscription_id': sub_exist.id if sub_exist else False,
+                            'direction': 'incoming',
+                            'content_type': content_type,
+                            'format_payload': '1' if format_payload == 1 else '0',
+                            'expiry': expiry,
+                            'response_topic': response_topic,
+                            'correlation_data': correlation_data,
+                            'subscription_identifier': get_first_or_zero(subscription_identifier),
+                            'metadata_value_ids': metadata_value,
                         }
-                        metadata_value.append(metadata_value_model.create(metadata_value_data))
+                        metadata = metadata_model.create(metadata_data)
+                        _logger.info(f"Metadata received on {msg.topic} created: {metadata.name or ''}.")
 
-                message_data = {
-                    'broker_id': broker_id,
-                    'metadata_id': metadata.id if metadata else False,
-                    'subscription_id': sub_exist.id if sub_exist else False,
-                    'topic': topic.name if topic else msg.topic,
-                    'payload': msg.payload.decode(errors='ignore'),
-                    'direction': 'incoming',
-                    'qos': msg.qos,
-                    'retain': msg.retain,
-                    'timestamp': fields.Datetime.now(),
-                }
-                history = history_env.create(message_data)
-                _logger.info(f"Message history created for topic {msg.topic}: {history.name or ''}.")
+                        for key, value in user_props:
+                            metadata_value_data = {
+                                'key': key,
+                                'value': value,
+                                'timestamp': fields.Datetime.now(),
+                                'metadata_id': metadata.id if metadata else False,
+                                'topic_id': topic.id if topic else False,
+                            }
+                            metadata_value.append(metadata_value_model.create(metadata_value_data))
 
-                # Update metadata with history and values
-                metadata.update({
-                    'history_id': history.id if history else False,
-                    'metadata_value_ids': [(6, 0, [mv.id for mv in metadata_value])] if metadata_value else False
-                })
-                _logger.info(f"Metadata updated with history and values for topic {msg.topic}.")
+                    message_data = {
+                        'broker_id': broker_id,
+                        'metadata_id': metadata.id if metadata else False,
+                        'subscription_id': sub_exist.id if sub_exist else False,
+                        'topic': topic.name if topic else msg.topic,
+                        'payload': msg.payload.decode(errors='ignore'),
+                        'direction': 'incoming',
+                        'qos': msg.qos,
+                        'retain': msg.retain,
+                        'timestamp': fields.Datetime.now(),
+                    }
+                    history = history_env.create(message_data)
+                    _logger.info(f"Message history created for topic {msg.topic}: {history.name or ''}.")
+
+                    # Update metadata with history and values
+                    if metadata:
+                        metadata.update({
+                            'history_id': history.id if history else False,
+                            'metadata_value_ids': [(6, 0, [mv.id for mv in metadata_value])] if metadata_value else False
+                        })
+                    _logger.info(f"Metadata updated with history and values for topic {msg.topic}.")
+
+                except Exception as e:
+                    _logger.error(f"Error processing message for topic {msg.topic}: {e}")
 
                 # Save to bus for real-time updates
                 env['bus.bus']._sendone(
