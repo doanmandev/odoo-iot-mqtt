@@ -45,7 +45,7 @@ def _auto_start_mqtt():
             and restart the listener for each DB when Odoo starts (multi-DB, multi-tenancy), use this function.
         When using multi-DB, call at _register_hook or where needed.
     """
-    for db_name, registry_obj in registries.items():
+    for db_name, registry_obj in list(registries.items()):
         try:
             with api.Environment.manage():
                 reg = Registry(db_name)
