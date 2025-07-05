@@ -351,9 +351,8 @@ class MQTTSubscription(models.Model):
                     'subscription_time': fields.Datetime.now()
                 })
 
-                self.env['bus.bus']._sendone(
-                    userdata['dbname'],
-                    ['mqtt_realtime'],
+                self.env['bus.bus'].sendone(
+                    'mqtt_realtime',
                     {
                         'topic': rec.topic_id.name,
                         'payload': rec.payload,
@@ -406,9 +405,8 @@ class MQTTSubscription(models.Model):
                     'unsubscription_time': fields.Datetime.now(),
                 })
 
-                self.env['bus.bus']._sendone(
-                    self.env.cr.dbname,
-                    ['mqtt_realtime'],
+                self.env['bus.bus'].sendone(
+                    'mqtt_realtime',
                     {
                         'topic': rec.topic_id.name,
                         'payload': rec.payload,

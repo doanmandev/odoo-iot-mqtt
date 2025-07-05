@@ -47,13 +47,15 @@ def _auto_start_mqtt():
     """
     for db_name, registry_obj in registries.items():
         try:
-            with registry_obj.cursor() as cr:
-                env = api.Environment(cr, SUPERUSER_ID, {})
-                if 'mqtt.broker' in env:
-                    _logger.info(f"Auto-starting MQTT service for database {db_name}")
-                    brokers = env['mqtt.broker'].search([])
-                    for broker in brokers:
-                        broker.action_start_listener()
-                    cr.commit()
+            with api.Environment.manage():
+                reg = Registry(db_name)
+                with reg.cursor() as cr:
+                    env = api.Environment(cr, SUPERUSER_ID, {})
+                    if 'mqtt.broker' in env:
+                        _logger.info(f"Auto-starting MQTT service for database {db_name}")
+                        brokers = env['mqtt.broker'].search([])
+                        for broker in brokers:
+                            broker.action_start_listener()
+                        cr.commit()
         except Exception as e:
             _logger.error(f"Unable to start MQTT service for database {db_name}: {e}")

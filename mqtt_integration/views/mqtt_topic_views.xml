@@ -91,6 +91,6 @@
               name="Topics"
               parent="mqtt_integration.menu_mqtt_configuration"
               action="action_mqtt_topic"
-              sequence="3"/>
+              sequence="2"/>
 
 </odoo>

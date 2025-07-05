@@ -35,7 +35,7 @@ This solution consists of two tightly integrated Odoo modules:
 
 ### Requirements
 
-* Odoo **16.0+**
+* Odoo **13.0+**
 * Python **3.8+**
 * MQTT client library: `paho-mqtt`
 

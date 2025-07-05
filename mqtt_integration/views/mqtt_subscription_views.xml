@@ -179,6 +179,6 @@
               name="Subscriptions"
               parent="mqtt_integration.menu_mqtt_configuration"
               action="action_mqtt_subscription"
-              sequence="2"/>
+              sequence="3"/>
 
 </odoo>
